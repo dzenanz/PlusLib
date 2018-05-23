@@ -44,6 +44,9 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "PlusMath.h"
 
 #include "vtkPlusFillHolesInVolume.h"
+//#include "vtkPlusPasteSliceIntoVolumeHelperCommon.h"
+//does not compile if included and we only need ACCUMULATION_MULTIPLIER
+#define ACCUMULATION_MULTIPLIER 256
 
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
@@ -526,6 +529,7 @@ bool FillHolesInVolumeElement::applySticks(
   bool valid; // set to true when we've hit a filled voxel
   int fwdTrav, rvsTrav; // store the number of voxels that have been searched
   T fwdVal, rvsVal; // store the values at each end of the stick
+  unsigned short fwdAcc, rvsAcc; // store accumulated weights to go along with values
 
   T* values = new T[numSticksInList];
   double* weights = new double[numSticksInList];
@@ -549,10 +553,11 @@ bool FillHolesInVolumeElement::applySticks(
         ztemp > wholeExtent[5] || ztemp < wholeExtent[4] ) // check bounds
         break;
       int accIndex =   accOffsets[0]*xtemp+  accOffsets[1]*ytemp+  accOffsets[2]*ztemp;
-      if (accData[accIndex] != 0) { // this is a filled voxel
+      if (accData[accIndex] != 0) { // this is at least partly filled voxel
         fwdTrav = j;
         int volIndex = inputOffsets[0]*xtemp+inputOffsets[1]*ytemp+inputOffsets[2]*ztemp+inputComp;
         fwdVal = inputData[volIndex];
+        fwdAcc = accData[accIndex];
         valid = true;
         break;
       }
@@ -578,10 +583,11 @@ bool FillHolesInVolumeElement::applySticks(
         ztemp > wholeExtent[5] || ztemp < wholeExtent[4] ) // check bounds
         break;
       int accIndex =   accOffsets[0]*xtemp+  accOffsets[1]*ytemp+  accOffsets[2]*ztemp;
-      if (accData[accIndex] != 0) { // this is a filled voxel
+      if (accData[accIndex] != 0) { // this is at least partly filled voxel
         rvsTrav = j;
         int volIndex = inputOffsets[0]*xtemp+inputOffsets[1]*ytemp+inputOffsets[2]*ztemp+inputComp;
         rvsVal = inputData[volIndex];
+        rvsAcc = accData[accIndex];
         valid = true;
         break;
       }
@@ -601,6 +607,7 @@ bool FillHolesInVolumeElement::applySticks(
                                                         sticksList[baseStickIndex+1]*sticksList[baseStickIndex+1]+
                                                         sticksList[baseStickIndex+2]*sticksList[baseStickIndex+2]));
     weights[i] = 1.0/realDistance;
+    weights[i] *= double(fwdAcc + rvsAcc) / (2 * ACCUMULATION_MULTIPLIER);
     values[i] = weightRvs*rvsVal + weightFwd*fwdVal;
   }
 
@@ -796,7 +803,7 @@ void vtkPlusFillHolesInVolume::vtkPlusFillHolesInVolumeExecute(vtkImageData *inV
       {
         // accumulator index should not depend on which individual component is being interpolated
         int accIndex = (currentPos[0]*byteIncAcc[0])+(currentPos[1]*byteIncAcc[1])+(currentPos[2]*byteIncAcc[2]);
-        if (accPtr[accIndex] == 0) // if not hit by accumulation during vtkPlusPasteSliceIntoVolume
+        if (accPtr[accIndex] < ACCUMULATION_MULTIPLIER) // if not hit by accumulation during vtkPlusPasteSliceIntoVolume
         {
           for (int c = 0; c < numVolumeComponents; c++)
           {
