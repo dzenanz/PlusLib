@@ -185,7 +185,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
 
     if(m_UseDeviceFrameReconstruction && usMode == B) //this only works with plain B-mode
     {
-      WPNewData(length, data, hHeader, hGeometry);
+      //WPNewData(length, data, hHeader, hGeometry);
       char* frameData = nullptr;
       int length = WPSaveImageToPointer(&frameData);
       assert(length == m_LineCount * m_SamplesPerLine * sizeof(uint32_t));
@@ -454,7 +454,6 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
 
   //setup size for DirectX image
   LOG_DEBUG("Setting output size to " << m_LineCount << "x" << m_SamplesPerLine);
-  WPSetSize(m_LineCount, m_SamplesPerLine);
   char* sessionPtr = GetSessionPtr();
   bool success = WPVPSetSession(sessionPtr);
   if(!success)
@@ -463,6 +462,9 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
     WPDisconnect();
     return PLUS_FAIL;
   }
+  WPSetSize(m_LineCount, m_SamplesPerLine);
+  WPDXSetDrawTextLayer(false);
+  WPDXSetDrawScalesAndBars(false);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime();
