@@ -175,6 +175,10 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
 
   //timestamp counters are in milliseconds since last recreate tables call
   double timestamp = header->TimeStamp / 1000.0;
+  if (timestamp == 0.0) // some change is being applied, so this frame is not valid
+  {
+    return; // ignore this frame
+  }
   timestamp += m_TimestampOffset;
   LOG_DEBUG("Frame: " << FrameNumber << ". Mode: " << std::setw(4) << std::hex << usMode << ". Timestamp: " << timestamp);
 
