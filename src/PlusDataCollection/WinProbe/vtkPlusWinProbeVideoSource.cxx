@@ -69,7 +69,10 @@ PlusStatus vtkPlusWinProbeVideoSource::ReadConfiguration(vtkXMLDataElement* root
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(unsigned long, LogLinearKnee, deviceConfig); //implicit type conversion
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(unsigned long, LogMax, deviceConfig); //implicit type conversion
   const char* strMode = deviceConfig->GetAttribute("Mode");
-  m_Mode = this->StringToMode(strMode);
+  if (strMode)
+  {
+    m_Mode = this->StringToMode(strMode);
+  }
 
   deviceConfig->GetVectorAttribute("TimeGainCompensation", 8, m_TimeGainCompensation);
   deviceConfig->GetVectorAttribute("FocalPointDepth", 4, m_FocalPointDepth);
