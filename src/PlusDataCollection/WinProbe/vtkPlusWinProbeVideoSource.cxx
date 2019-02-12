@@ -305,7 +305,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     LOG_DEBUG("Frame ignored - B-mode source not defined. Got mode: " << std::hex << usMode);
     return;
   }
-  else if(usMode & BFRFALineImage_RFData || usMode & M_PostProcess)
+  else if(usMode & BFRFALineImage_RFData || usMode & M_PostProcess || usMode & PWD_PostProcess)
   {
     assert(length == m_SamplesPerLine * brfGeometry->Decimation * m_LineCount * sizeof(int32_t)); //header and footer not appended to data
     FrameSizeType frameSize = { m_SamplesPerLine* brfGeometry->Decimation, m_LineCount, 1 };
