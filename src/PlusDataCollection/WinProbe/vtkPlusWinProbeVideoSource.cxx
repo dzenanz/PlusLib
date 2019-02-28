@@ -307,7 +307,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   }
   else if(usMode & BFRFALineImage_RFData || usMode & M_PostProcess || usMode & PWD_PostProcess)
   {
-    assert(length == m_SamplesPerLine * brfGeometry->Decimation * m_LineCount * sizeof(int32_t)); //header and footer not appended to data
+    //assert(length >= m_SamplesPerLine * brfGeometry->Decimation * m_LineCount * sizeof(int32_t)); //header and footer not appended to data
     FrameSizeType frameSize = { m_SamplesPerLine* brfGeometry->Decimation, m_LineCount, 1 };
     for(unsigned i = 0; i < m_ExtraSources.size(); i++)
     {
@@ -586,6 +586,7 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
 PlusStatus vtkPlusWinProbeVideoSource::InternalStopRecording()
 {
   WPStopScanning();
+  SetMIsEnabled(false);
   return PLUS_SUCCESS;
 }
 
