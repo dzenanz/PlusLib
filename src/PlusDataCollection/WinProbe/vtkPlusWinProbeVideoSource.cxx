@@ -634,7 +634,6 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
   if(m_Mode == Mode::M)
   {
-    LOG_INFO("M-Mode enabled");
     this->SetMModeEnabled(true);
   }
 
@@ -927,6 +926,7 @@ void vtkPlusWinProbeVideoSource::SetMModeEnabled(bool value)
     }
     SetPendingRecreateTables(true);
     m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
+    LOG_INFO("M-Mode enabled");
   }
   if(value)
   {
