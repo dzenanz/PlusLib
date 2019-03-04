@@ -636,12 +636,6 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
   {
     LOG_INFO("M-Mode enabled");
     this->SetMModeEnabled(true);
-    this->SetMRevolvingEnabled(m_MRevolvingEnabled);
-    this->SetMPRFrequency(m_MPRF);
-    this->SetMLineIndex(m_MLineIndex);
-    ::SetMWidth(m_MWidth);
-    SetPendingRecreateTables(true);
-    this->SetMAcousticLineCount(m_MAcousticLineCount);
   }
 
   m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime();
@@ -923,6 +917,14 @@ void vtkPlusWinProbeVideoSource::SetMModeEnabled(bool value)
   if(Connected)
   {
     SetMIsEnabled(value);
+    if(value)
+    {
+      SetMIsRevolving(m_MRevolvingEnabled);
+      SetMPRF(m_MPRF);
+      SetMAcousticLineIndex(m_MLineIndex);
+      ::SetMWidth(m_MWidth);
+      ::SetMAcousticLineCount(m_MAcousticLineCount);
+    }
     SetPendingRecreateTables(true);
     m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
