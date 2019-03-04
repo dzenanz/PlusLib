@@ -83,10 +83,13 @@ PlusStatus vtkPlusWinProbeVideoSource::ReadConfiguration(vtkXMLDataElement* root
   if(m_Mode == Mode::M)
   {
     const char* mwidthSeconds_string = deviceConfig->GetAttribute("MWidth");
-    int mwidthSeconds = std::stoi(mwidthSeconds_string);
-    if(mwidthSeconds)
+    if(mwidthSeconds_string)
     {
-      m_MWidth = this->MWidthFromSeconds(mwidthSeconds);
+      int mwidthSeconds = std::stoi(mwidthSeconds_string);
+      if(mwidthSeconds > 0)
+      {
+        m_MWidth = this->MWidthFromSeconds(mwidthSeconds);
+      }
     }
   }
 
