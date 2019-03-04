@@ -13,7 +13,7 @@ See License.txt for details.
 #include "WinProbe.h"
 
 #include <algorithm>
-#include <math.h>
+#include <cmath>
 #include <PlusMath.h>
 
 //----------------------------------------------------------------------------
@@ -83,12 +83,7 @@ PlusStatus vtkPlusWinProbeVideoSource::ReadConfiguration(vtkXMLDataElement* root
   if(m_Mode == Mode::M)
   {
     const char* mwidthSeconds_string = deviceConfig->GetAttribute("MWidth");
-    std::stringstream mwidthSecondsStream;
-    mwidthSecondsStream << mwidthSeconds_string;
-
-    int mwidthSeconds;
-    mwidthSecondsStream >> mwidthSeconds;
-
+    int mwidthSeconds = std::stoi(mwidthSeconds_string);
     if (mwidthSeconds)
     {
     m_MWidth = this->MWidthFromSeconds(mwidthSeconds);
@@ -221,7 +216,7 @@ int vtkPlusWinProbeVideoSource::MSecondsFromWidth(int32_t value)
   else if(value <= 8192)
   {
     mwidthSeconds = value * 10 / 1024;
-    if(mwidthSeconds == 8)
+    if(mwidthSeconds == 80)
     {
       mwidthSeconds += 1;  //81 s
     }
