@@ -348,7 +348,11 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     }
     else
     {
-      this->ReconstructFrame(data);
+      char* texture = nullptr;
+      int length = WPDXGetFusedTexData(&texture);
+      this->ReconstructFrame(texture);
+      WPFreePointer(texture);
+      //this->ReconstructFrame(data);
     }
 
     for(unsigned i = 0; i < m_PrimarySources.size(); i++)
@@ -580,6 +584,11 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalConnect()
     SetCFIsEnabled(true);
   }
   //TODO handle additional modes
+
+  if(!m_UseDeviceFrameReconstruction)
+  {
+    WPDXSetIsGetSpatialCompoundedTexEnabled(true);
+  }
 
   LOG_DEBUG("GetHandleBRFInternally: " << GetHandleBRFInternally());
   LOG_DEBUG("GetBFRFImageCaptureMode: " << GetBFRFImageCaptureMode());
