@@ -368,18 +368,25 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     }
     else
     {
-      char* texture = nullptr;
-      int tLength = WPDXGetFusedTexData(&texture);
-      assert(tLength == m_SamplesPerLine * m_LineCount);
-      if(tLength > 0)
+      if (m_Mode == Mode::M)
       {
-        this->FlipTexture(texture);
+        //this->ReconstructFrame(data);
       }
-      else
+      else // B-mode
       {
-        this->ReconstructFrame(data);
+        char* texture = nullptr;
+        int tLength = WPDXGetFusedTexData(&texture);
+        assert(tLength == m_SamplesPerLine * m_LineCount);
+        if(tLength > 0)
+        {
+          this->FlipTexture(texture);
+        }
+        else
+        {
+          this->ReconstructFrame(data);
+        }
+        WPFreePointer(texture);
       }
-      WPFreePointer(texture);
     }
 
     if(m_Mode == Mode::B || m_Mode == Mode::BRF)
@@ -403,10 +410,11 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     {
       for(unsigned i = 0; i < m_ExtraSources.size(); i++)
       {
-        if(m_ExtraSources[i]->AddItem(&m_BModeBuffer[0],
+        frameSize[0] = m_MWidth;
+        if(m_ExtraSources[i]->AddItem(data,
                                       m_ExtraSources[i]->GetInputImageOrientation(),
                                       frameSize, VTK_UNSIGNED_CHAR,
-                                      1, US_IMG_BRIGHTNESS, 0,
+                                      1, US_IMG_BRIGHTNESS, 16,
                                       this->FrameNumber,
                                       timestamp,
                                       timestamp, //no timestamp filtering needed
@@ -510,8 +518,8 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
       frameSize[0] = m_MWidth;
       m_ExtraSources[i]->SetPixelType(VTK_UNSIGNED_CHAR);
       m_ExtraSources[i]->SetImageType(US_IMG_BRIGHTNESS);
-      m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_MF);
-      m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_MF);
+      m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_FM);
+      m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_FM);
     }
 
     m_ExtraSources[i]->Clear(); // clear current buffer content

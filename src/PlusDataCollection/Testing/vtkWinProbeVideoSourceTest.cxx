@@ -168,7 +168,7 @@ int main(int argc, char* argv[])
   else
   {
     vtkSmartPointer<vtkImageViewer> viewer = vtkSmartPointer<vtkImageViewer>::New();
-    viewer->SetInputConnection(WinProbeDevice->GetOutputPort()); //set image to the render and window
+    viewer->SetInputConnection(WinProbeDevice->GetOutputPort(0)); //set image to the render and window
     viewer->SetColorWindow(255);
     viewer->SetColorLevel(127.5);
     viewer->SetZSlice(0);
