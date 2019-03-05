@@ -301,6 +301,8 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   CineModeFrameHeader* header = (CineModeFrameHeader*)hHeader;
   CFDGeometryStruct* cfdGeometry = (CFDGeometryStruct*)hGeometry;
   GeometryStruct* brfGeometry = (GeometryStruct*)hGeometry; //B-mode and RF
+  MGeometryStruct* mGeometry = (MGeometryStruct*)hGeometry;
+  PWGeometryStruct* pwGeometry = (PWGeometryStruct*)hGeometry;
   this->FrameNumber = header->TotalFrameCounter;
   InputSourceBindings usMode = header->InputSourceBinding;
   if(usMode & CFD)
@@ -315,13 +317,13 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   }
   else if(usMode & M_PostProcess)
   {
-    m_LineCount = brfGeometry->LineCount;
-    m_SamplesPerLine = brfGeometry->SamplesPerLine;
+    m_LineCount = mGeometry->LineCount;
+    m_SamplesPerLine = mGeometry->SamplesPerLine;
   }
   else if(usMode & PWD_PostProcess)
   {
-    m_LineCount = brfGeometry->ElementCount;
-    m_SamplesPerLine = brfGeometry->SamplesPerLine;
+    m_LineCount = pwGeometry->NumberOfImageLines;
+    m_SamplesPerLine = pwGeometry->NumberOfImageSamples;
   }
   else
   {
@@ -364,15 +366,15 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       char* texture = nullptr;
       int tLength = WPDXGetFusedTexData(&texture);
       assert(tLength == m_SamplesPerLine * m_LineCount);
-      if (tLength == m_SamplesPerLine * m_LineCount)
+      if(tLength > 0)
       {
         this->FlipTexture(texture);
-        WPFreePointer(texture);
       }
       else
       {
         this->ReconstructFrame(data);
       }
+      WPFreePointer(texture);
     }
 
     for(unsigned i = 0; i < m_PrimarySources.size(); i++)
@@ -655,7 +657,7 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
     WPDisconnect();
     return PLUS_FAIL;
   }
-  WPSetSize(m_LineCount, m_SamplesPerLine); 
+  WPSetSize(m_LineCount, m_SamplesPerLine);
   if(!m_UseDeviceFrameReconstruction)
   {
     WPDXSetIsGetSpatialCompoundedTexEnabled(true);
