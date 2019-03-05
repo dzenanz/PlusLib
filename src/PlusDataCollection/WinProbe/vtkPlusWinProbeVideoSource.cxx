@@ -576,13 +576,13 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalConnect()
 
   if(m_Mode == Mode::BRF || m_Mode == Mode::RF)
   {
-    SetHandleBRFInternally(true);
-    SetBFRFImageCaptureMode(0);
+    SetHandleBRFInternally(false);
+    SetBFRFImageCaptureMode(2);
   }
   else
   {
-    SetHandleBRFInternally(false);
-    SetBFRFImageCaptureMode(2);
+    SetHandleBRFInternally(true);
+    SetBFRFImageCaptureMode(0);
   }
   if(m_Mode != Mode::RF) // all modes except pure RF require primary source
   {
