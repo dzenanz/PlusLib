@@ -305,29 +305,28 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   PWGeometryStruct* pwGeometry = (PWGeometryStruct*)hGeometry;
   this->FrameNumber = header->TotalFrameCounter;
   InputSourceBindings usMode = header->InputSourceBinding;
-  if(usMode & CFD)
+  switch(m_Mode)
   {
-    m_LineCount = cfdGeometry->LineCount;
-    m_SamplesPerLine = cfdGeometry->SamplesPerKernel;
-  }
-  else if(usMode & B || usMode & BFRFALineImage_RFData)
-  {
+  case vtkPlusWinProbeVideoSource::Mode::B:
+  case vtkPlusWinProbeVideoSource::Mode::BRF:
+  case vtkPlusWinProbeVideoSource::Mode::RF:
     m_LineCount = brfGeometry->LineCount;
     m_SamplesPerLine = brfGeometry->SamplesPerLine;
-  }
-  else if(usMode & M_PostProcess)
-  {
+    break;
+  case vtkPlusWinProbeVideoSource::Mode::M:
     m_LineCount = mGeometry->LineCount;
     m_SamplesPerLine = mGeometry->SamplesPerLine;
-  }
-  else if(usMode & PWD_PostProcess)
-  {
+    break;
+  case vtkPlusWinProbeVideoSource::Mode::PW:
     m_LineCount = pwGeometry->NumberOfImageLines;
     m_SamplesPerLine = pwGeometry->NumberOfImageSamples;
-  }
-  else
-  {
-    LOG_INFO("Unsupported frame type: " << std::hex << usMode);
+    break;
+  case vtkPlusWinProbeVideoSource::Mode::CFD:
+    m_LineCount = cfdGeometry->LineCount;
+    m_SamplesPerLine = cfdGeometry->SamplesPerKernel;
+    break;
+  default:
+    LOG_ERROR("Unknown ultrasound mode: " << (int)m_Mode);
     return;
   }
 
