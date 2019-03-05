@@ -344,12 +344,13 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   timestamp += m_TimestampOffset;
   LOG_DEBUG("Frame: " << FrameNumber << ". Mode: " << std::setw(4) << std::hex << usMode << ". Timestamp: " << timestamp);
 
-  if(usMode & B && !m_PrimarySources.empty()) // B-mode flag is set, and B-mode source is defined
+  if(usMode & (B | BFRFALineMMode_SampleData | BFRFALineImage_SampleData
+      ) && !m_PrimarySources.empty()) // B-mode flag is set, and B-mode source is defined
   {
     assert(length == m_SamplesPerLine * m_LineCount * sizeof(uint16_t) + 16); //frame + header
     FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
 
-    if(m_UseDeviceFrameReconstruction && usMode == B) //this only works with plain B-mode
+    if(m_UseDeviceFrameReconstruction)
     {
       //WPNewData(length, data, hHeader, hGeometry);
       char* frameData = nullptr;
