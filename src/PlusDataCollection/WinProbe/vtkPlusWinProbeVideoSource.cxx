@@ -336,6 +336,11 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   {
     return; // ignore this frame
   }
+  if (timestamp < m_LastTimestamp)
+  {
+    m_TimestampOffset += m_LastTimestamp;
+  }
+  m_LastTimestamp = timestamp;
   timestamp += m_TimestampOffset;
   LOG_DEBUG("Frame: " << FrameNumber << ". Mode: " << std::setw(4) << std::hex << usMode << ". Timestamp: " << timestamp);
 
@@ -722,7 +727,6 @@ PlusStatus vtkPlusWinProbeVideoSource::SetTransmitFrequencyMHz(float frequency)
 
     //what we requested might be only approximately satisfied
     m_Frequency = ::GetTxTxFrequency();
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   return PLUS_SUCCESS;
 }
@@ -747,7 +751,6 @@ PlusStatus vtkPlusWinProbeVideoSource::SetVoltage(uint8_t voltage)
     SetPendingRecreateTables(true);
     //what we requested might be only approximately satisfied
     m_Voltage = ::GetVoltage();
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   return PLUS_SUCCESS;
 }
@@ -779,7 +782,6 @@ PlusStatus vtkPlusWinProbeVideoSource::SetScanDepthMm(float depth)
     m_SamplesPerLine = static_cast<unsigned int>(GetSSSamplesPerLine()); //this and decimation change depending on depth
     AdjustSpacing();
     AdjustBufferSize();
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
     if(Recording)
     {
       WPExecute();
@@ -863,7 +865,6 @@ PlusStatus vtkPlusWinProbeVideoSource::SetFocalPointDepth(int index, float depth
     SetPendingRecreateTables(true);
     //what we requested might be only approximately satisfied
     m_FocalPointDepth[index] = ::GetFocalPointDepth(index);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   return PLUS_SUCCESS;
 }
@@ -884,7 +885,6 @@ void vtkPlusWinProbeVideoSource::SetSpatialCompoundEnabled(bool value)
       SetSCCompoundAngleCount(0);
     }
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_SpatialCompoundEnabled = value;
 }
@@ -906,7 +906,6 @@ void vtkPlusWinProbeVideoSource::SetSpatialCompoundAngle(float value)
     SetSCCompoundAngle(value);
     SetPendingRecreateTables(true);
     m_SpatialCompoundAngle = GetSCCompoundAngle(); //in case it was not exactly satisfied
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
 }
 
@@ -925,7 +924,6 @@ void vtkPlusWinProbeVideoSource::SetSpatialCompoundCount(int32_t value)
   {
     SetSCCompoundAngleCount(value);
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_SpatialCompoundCount = value;
 }
@@ -957,7 +955,6 @@ void vtkPlusWinProbeVideoSource::SetMModeEnabled(bool value)
       ::SetMAcousticLineCount(m_MAcousticLineCount);
     }
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
     LOG_INFO("M-Mode enabled");
   }
   if(value)
@@ -995,7 +992,6 @@ void vtkPlusWinProbeVideoSource::SetMRevolvingEnabled(bool value)
   {
     SetMIsRevolving(value);
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_MRevolvingEnabled = value;
 }
@@ -1015,7 +1011,6 @@ void vtkPlusWinProbeVideoSource::SetMPRFrequency(int32_t value)
   {
     SetMPRF(value);
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_MPRF = value;
 }
@@ -1035,7 +1030,6 @@ void vtkPlusWinProbeVideoSource::SetMLineIndex(int32_t value)
   {
     SetMAcousticLineIndex(value);
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_MLineIndex = value;
 }
@@ -1056,7 +1050,6 @@ void vtkPlusWinProbeVideoSource::SetMWidth(int value)
     int32_t mwidth = this->MWidthFromSeconds(value);
     ::SetMWidth(mwidth);
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_MWidth = value;
 }
@@ -1078,7 +1071,6 @@ void vtkPlusWinProbeVideoSource::SetMAcousticLineCount(int32_t value)
   {
     ::SetMAcousticLineCount(value);
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_MAcousticLineCount = value;
 }
@@ -1098,7 +1090,6 @@ void vtkPlusWinProbeVideoSource::SetMDepth(int32_t value)
   {
     ::SetMDepth(value);
     SetPendingRecreateTables(true);
-    m_TimestampOffset = vtkIGSIOAccurateTimer::GetSystemTime(); // recreate tables resets internal timer
   }
   m_MDepth = value;
 }
