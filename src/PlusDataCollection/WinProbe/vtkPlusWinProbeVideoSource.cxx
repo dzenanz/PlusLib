@@ -282,6 +282,19 @@ void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data)
   }
 }
 
+void vtkPlusWinProbeVideoSource::FlipTexture(char* data)
+{
+  #pragma omp parallel for
+  for(unsigned t = 0; t < m_LineCount; t++)
+  {
+    for(unsigned s = 0; s < m_SamplesPerLine; s++)
+    {
+      m_BModeBuffer[s * m_LineCount + t] = data[t * m_SamplesPerLine + s];
+    }
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHeader, char* hGeometry)
 {
@@ -349,10 +362,17 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     else
     {
       char* texture = nullptr;
-      int length = WPDXGetFusedTexData(&texture);
-      this->ReconstructFrame(texture);
-      WPFreePointer(texture);
-      //this->ReconstructFrame(data);
+      int tLength = WPDXGetFusedTexData(&texture);
+      assert(tLength == m_SamplesPerLine * m_LineCount);
+      if (tLength == m_SamplesPerLine * m_LineCount)
+      {
+        this->FlipTexture(texture);
+        WPFreePointer(texture);
+      }
+      else
+      {
+        this->ReconstructFrame(data);
+      }
     }
 
     for(unsigned i = 0; i < m_PrimarySources.size(); i++)
@@ -585,11 +605,6 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalConnect()
   }
   //TODO handle additional modes
 
-  if(!m_UseDeviceFrameReconstruction)
-  {
-    WPDXSetIsGetSpatialCompoundedTexEnabled(true);
-  }
-
   LOG_DEBUG("GetHandleBRFInternally: " << GetHandleBRFInternally());
   LOG_DEBUG("GetBFRFImageCaptureMode: " << GetBFRFImageCaptureMode());
   SetPendingRecreateTables(true);
@@ -640,7 +655,11 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
     WPDisconnect();
     return PLUS_FAIL;
   }
-  WPSetSize(m_LineCount, m_SamplesPerLine);
+  WPSetSize(m_LineCount, m_SamplesPerLine); 
+  if(!m_UseDeviceFrameReconstruction)
+  {
+    WPDXSetIsGetSpatialCompoundedTexEnabled(true);
+  }
   WPDXSetDrawTextLayer(false);
   WPDXSetDrawScalesAndBars(false);
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
