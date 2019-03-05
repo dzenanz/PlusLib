@@ -344,7 +344,9 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   timestamp += m_TimestampOffset;
   LOG_DEBUG("Frame: " << FrameNumber << ". Mode: " << std::setw(4) << std::hex << usMode << ". Timestamp: " << timestamp);
 
-  if(usMode & B && !m_PrimarySources.empty()) // B-mode flag is set, and B-mode source is defined
+  if(usMode & B && !m_PrimarySources.empty() // B-mode and primary source is defined
+    || usMode & M_PostProcess && !m_ExtraSources.empty() // M-mode and extra source is defined
+    )
   {
     assert(length == m_SamplesPerLine * m_LineCount * sizeof(uint16_t) + 16); //frame + header
     FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
@@ -380,18 +382,38 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       WPFreePointer(texture);
     }
 
-    for(unsigned i = 0; i < m_PrimarySources.size(); i++)
+    if(m_Mode == Mode::B || m_Mode == Mode::BRF)
     {
-      if(m_PrimarySources[i]->AddItem(&m_BModeBuffer[0],
-                                      m_PrimarySources[i]->GetInputImageOrientation(),
+      for(unsigned i = 0; i < m_PrimarySources.size(); i++)
+      {
+        if(m_PrimarySources[i]->AddItem(&m_BModeBuffer[0],
+                                        m_PrimarySources[i]->GetInputImageOrientation(),
+                                        frameSize, VTK_UNSIGNED_CHAR,
+                                        1, US_IMG_BRIGHTNESS, 0,
+                                        this->FrameNumber,
+                                        timestamp,
+                                        timestamp, //no timestamp filtering needed
+                                        &this->m_CustomFields) != PLUS_SUCCESS)
+        {
+          LOG_WARNING("Error adding item to video source " << m_PrimarySources[i]->GetSourceId());
+        }
+      }
+    }
+    else if(m_Mode == Mode::M)
+    {
+      for(unsigned i = 0; i < m_ExtraSources.size(); i++)
+      {
+        if(m_ExtraSources[i]->AddItem(&m_BModeBuffer[0],
+                                      m_ExtraSources[i]->GetInputImageOrientation(),
                                       frameSize, VTK_UNSIGNED_CHAR,
                                       1, US_IMG_BRIGHTNESS, 0,
                                       this->FrameNumber,
                                       timestamp,
                                       timestamp, //no timestamp filtering needed
                                       &this->m_CustomFields) != PLUS_SUCCESS)
-      {
-        LOG_WARNING("Error adding item to video source " << m_PrimarySources[i]->GetSourceId());
+        {
+          LOG_WARNING("Error adding item to video source " << m_ExtraSources[i]->GetSourceId());
+        }
       }
     }
   }
@@ -419,25 +441,25 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       }
     }
   }
-  else if(usMode & (M_PostProcess | BFRFALineMMode_SampleData | BFRFALineImage_SampleData | PWD_PostProcess))
-  {
-    assert(length == m_SamplesPerLine * m_LineCount);
-    FrameSizeType frameSize = { m_SamplesPerLine, m_LineCount, 1 };
-    for(unsigned i = 0; i < m_ExtraSources.size(); i++)
-    {
-      if(m_ExtraSources[i]->AddItem(data,
-                                    m_ExtraSources[i]->GetInputImageOrientation(),
-                                    frameSize, VTK_UNSIGNED_CHAR,
-                                    1, US_IMG_BRIGHTNESS, 0,
-                                    this->FrameNumber,
-                                    timestamp,
-                                    timestamp,
-                                    &m_CustomFields) != PLUS_SUCCESS)
-      {
-        LOG_WARNING("Error adding item to video source " << m_ExtraSources[i]->GetSourceId());
-      }
-    }
-  }
+  //else if(usMode & (M_PostProcess | BFRFALineMMode_SampleData | BFRFALineImage_SampleData | PWD_PostProcess))
+  //{
+  //  assert(length == m_SamplesPerLine * m_LineCount);
+  //  FrameSizeType frameSize = { m_SamplesPerLine, m_LineCount, 1 };
+  //  for(unsigned i = 0; i < m_ExtraSources.size(); i++)
+  //  {
+  //    if(m_ExtraSources[i]->AddItem(data,
+  //                                  m_ExtraSources[i]->GetInputImageOrientation(),
+  //                                  frameSize, VTK_UNSIGNED_CHAR,
+  //                                  1, US_IMG_BRIGHTNESS, 0,
+  //                                  this->FrameNumber,
+  //                                  timestamp,
+  //                                  timestamp,
+  //                                  &m_CustomFields) != PLUS_SUCCESS)
+  //    {
+  //      LOG_WARNING("Error adding item to video source " << m_ExtraSources[i]->GetSourceId());
+  //    }
+  //  }
+  //}
   else if(usMode & CFD)
   {
     //TODO
