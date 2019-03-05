@@ -496,13 +496,25 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
 
   for(unsigned i = 0; i < m_ExtraSources.size(); i++)
   {
-    frameSize[0] = m_SamplesPerLine*::GetSSDecimation();
-    frameSize[1] = m_LineCount;
+    if (m_Mode == Mode::RF || m_Mode == Mode::BRF)
+    {
+      frameSize[0] = m_SamplesPerLine * ::GetSSDecimation();
+      frameSize[1] = m_LineCount;
+      m_ExtraSources[i]->SetPixelType(VTK_INT);
+      m_ExtraSources[i]->SetImageType(US_IMG_RF_REAL);
+      m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_FM);
+      m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_FM);
+    }
+    else if (m_Mode == Mode::M)
+    {
+      frameSize[0] = m_MWidth;
+      m_ExtraSources[i]->SetPixelType(VTK_UNSIGNED_CHAR);
+      m_ExtraSources[i]->SetImageType(US_IMG_BRIGHTNESS);
+      m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_MF);
+      m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_MF);
+    }
+
     m_ExtraSources[i]->Clear(); // clear current buffer content
-    m_ExtraSources[i]->SetPixelType(VTK_INT);
-    m_ExtraSources[i]->SetImageType(US_IMG_RF_REAL);
-    m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_FM);
-    m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_FM);
     m_ExtraSources[i]->SetInputFrameSize(frameSize);
     LOG_INFO("SourceID: " << m_ExtraSources[i]->GetId() << ", "
              << "Frame size: " << frameSize[0] << "x" << frameSize[1]
