@@ -2213,6 +2213,19 @@ IF( ${CMAKE_GENERATOR} MATCHES "Visual Studio" OR ${CMAKE_GENERATOR} MATCHES "Xc
     DESTINATION ${PLUS_EXECUTABLE_OUTPUT_PATH}/MinSizeRel
     )
 
+
+  # make a custom build step which copies these DLLs on each build of PlusDataCollection
+  # this is useful when WinProbeSDK is frequently updated
+  SET(WinProbe_DLLs $<$<CONFIG:Debug>:${External_Libraries_Debug}>$<$<NOT:$<CONFIG:Debug>>:${External_Libraries_Install}>)
+  SET(WinProbeDLLOutput ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/)
+  #MESSAGE("WinProbe_DLLs: ${WinProbe_DLLs}")
+  #MESSAGE("WinProbeDLLOutput: ${WinProbeDLLOutput}")
+  FOREACH(WinProbeDLL ${WinProbe_DLLs})
+    ADD_CUSTOM_COMMAND(TARGET vtk${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E echo "Copying ${WinProbeDLL}  __INTO__  ${WinProbeDLLOutput}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${WinProbeDLL} ${WinProbeDLLOutput})
+  ENDFOREACH()
+
   # If debug and release dll has the same name then the debug dll would be
   # overwritten by the file copy. To prevent this, copy only those release dlls
   # that has no corresponding debug dll with the same filename.
