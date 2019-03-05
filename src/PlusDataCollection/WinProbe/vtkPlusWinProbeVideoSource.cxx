@@ -574,12 +574,12 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalConnect()
   LOG_DEBUG("GetHandleBRFInternally: " << GetHandleBRFInternally());
   LOG_DEBUG("GetBFRFImageCaptureMode: " << GetBFRFImageCaptureMode());
 
-  if(!m_PrimarySources.empty())
+  if(m_Mode == Mode::BRF || m_Mode == Mode::RF)
   {
     SetHandleBRFInternally(true);
     SetBFRFImageCaptureMode(0);
   }
-  if(!m_ExtraSources.empty()) //overwrite B-mode settings
+  else
   {
     SetHandleBRFInternally(false);
     SetBFRFImageCaptureMode(2);
