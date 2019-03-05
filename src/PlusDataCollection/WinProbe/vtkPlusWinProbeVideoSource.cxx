@@ -344,15 +344,13 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   timestamp += m_TimestampOffset;
   LOG_DEBUG("Frame: " << FrameNumber << ". Mode: " << std::setw(4) << std::hex << usMode << ". Timestamp: " << timestamp);
 
-  if(usMode & (B | BFRFALineMMode_SampleData | BFRFALineImage_SampleData
-      ) && !m_PrimarySources.empty()) // B-mode flag is set, and B-mode source is defined
+  if(usMode & B && !m_PrimarySources.empty()) // B-mode flag is set, and B-mode source is defined
   {
     assert(length == m_SamplesPerLine * m_LineCount * sizeof(uint16_t) + 16); //frame + header
     FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
 
     if(m_UseDeviceFrameReconstruction)
     {
-      //WPNewData(length, data, hHeader, hGeometry);
       char* frameData = nullptr;
       int length = WPSaveImageToPointer(&frameData);
       assert(length == m_LineCount * m_SamplesPerLine * sizeof(uint32_t));
@@ -402,9 +400,9 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     LOG_DEBUG("Frame ignored - B-mode source not defined. Got mode: " << std::hex << usMode);
     return;
   }
-  else if(usMode & BFRFALineImage_RFData || usMode & M_PostProcess || usMode & PWD_PostProcess)
+  else if(usMode & BFRFALineImage_RFData)
   {
-    //assert(length >= m_SamplesPerLine * brfGeometry->Decimation * m_LineCount * sizeof(int32_t)); //header and footer not appended to data
+    assert(length == m_SamplesPerLine * brfGeometry->Decimation * m_LineCount * sizeof(int32_t));
     FrameSizeType frameSize = { m_SamplesPerLine* brfGeometry->Decimation, m_LineCount, 1 };
     for(unsigned i = 0; i < m_ExtraSources.size(); i++)
     {
@@ -412,6 +410,25 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
                                     m_ExtraSources[i]->GetInputImageOrientation(),
                                     frameSize, VTK_INT,
                                     1, US_IMG_RF_REAL, 0,
+                                    this->FrameNumber,
+                                    timestamp,
+                                    timestamp,
+                                    &m_CustomFields) != PLUS_SUCCESS)
+      {
+        LOG_WARNING("Error adding item to video source " << m_ExtraSources[i]->GetSourceId());
+      }
+    }
+  }
+  else if(usMode & (M_PostProcess | BFRFALineMMode_SampleData | BFRFALineImage_SampleData | PWD_PostProcess))
+  {
+    assert(length == m_SamplesPerLine * m_LineCount);
+    FrameSizeType frameSize = { m_SamplesPerLine, m_LineCount, 1 };
+    for(unsigned i = 0; i < m_ExtraSources.size(); i++)
+    {
+      if(m_ExtraSources[i]->AddItem(data,
+                                    m_ExtraSources[i]->GetInputImageOrientation(),
+                                    frameSize, VTK_UNSIGNED_CHAR,
+                                    1, US_IMG_BRIGHTNESS, 0,
                                     this->FrameNumber,
                                     timestamp,
                                     timestamp,
