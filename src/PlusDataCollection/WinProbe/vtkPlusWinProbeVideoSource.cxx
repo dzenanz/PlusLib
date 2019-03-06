@@ -332,11 +332,14 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     return;
   }
 
+  FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
+
   if(m_SamplesPerLine != oldSamplesPerLine)
   {
     LOG_INFO("SamplesPerLine has changed from " << oldSamplesPerLine
       << " to " << m_SamplesPerLine << ". Adjusting spacing and buffer sizes.");
-    AdjustBufferSize();
+    AdjustPrimaryBufferSize();
+    AdjustExtraBufferSize();
     AdjustSpacing();
   }
 
@@ -468,7 +471,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
 }
 
 //----------------------------------------------------------------------------
-void vtkPlusWinProbeVideoSource::AdjustBufferSize()
+void vtkPlusWinProbeVideoSource::AdjustPrimaryBufferSize()
 {
   FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
 
@@ -487,6 +490,11 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
              << igsioVideoFrame::GetStringFromUsImageOrientation(m_PrimarySources[i]->GetInputImageOrientation()));
     m_PrimaryBuffer.resize(m_SamplesPerLine * m_LineCount);
   }
+}
+
+void vtkPlusWinProbeVideoSource::AdjustExtraBufferSize()
+{
+  FrameSizeType frameSize = { m_MWidth, m_SamplesPerLine, 1 };
 
   for(unsigned i = 0; i < m_ExtraSources.size(); i++)
   {
@@ -502,7 +510,6 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
     }
     else if(m_Mode == Mode::M)
     {
-      frameSize[0] = m_MWidth;
       m_ExtraSources[i]->SetPixelType(VTK_UNSIGNED_CHAR);
       m_ExtraSources[i]->SetImageType(US_IMG_BRIGHTNESS);
       m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_MF);
@@ -694,7 +701,7 @@ PlusStatus vtkPlusWinProbeVideoSource::InternalStartRecording()
   }
   this->SetTransmitFrequencyMHz(m_Frequency);
   this->SetVoltage(m_Voltage);
-  this->SetScanDepthMm(m_ScanDepth); //as a side-effect calls AdjustSpacing and AdjustBufferSize
+  this->SetScanDepthMm(m_ScanDepth);
   this->SetSpatialCompoundEnabled(m_SpatialCompoundEnabled); // also takes care of angle  and count
 
   //setup size for DirectX image
