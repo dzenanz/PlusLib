@@ -215,7 +215,7 @@ protected:
   double m_LastTimestamp = 0.0; //used to determine timer restarts and to update timestamp offset
   unsigned m_LineCount = 128;
   unsigned m_SamplesPerLine = 512;
-  std::vector<uint8_t> m_BModeBuffer; //avoid reallocating buffer every frame
+  std::vector<uint8_t> m_PrimaryBuffer; //avoid reallocating buffer every frame
   bool m_UseDeviceFrameReconstruction = true;
   igsioTrackedFrame::FieldMapType m_CustomFields;
   double m_TimeGainCompensation[8];

@@ -246,7 +246,7 @@ int __stdcall frameCallback(int length, char* data, char* hHeader, char* hGeomet
 void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data)
 {
   uint16_t* frame = reinterpret_cast<uint16_t*>(data + 16);
-  assert(m_BModeBuffer.size() == m_SamplesPerLine * m_LineCount);
+  assert(m_PrimaryBuffer.size() == m_SamplesPerLine * m_LineCount);
   const float logFactor = m_OutputKnee / std::log(1 + m_Knee);
 
   #pragma omp parallel for
@@ -277,7 +277,7 @@ void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data)
       {
         cVal = m_OutputKnee + (val - m_Knee) * float(255 - m_OutputKnee) / (m_MaxValue - m_Knee);
       }
-      m_BModeBuffer[s * m_LineCount + t] = static_cast<uint8_t>(cVal);
+      m_PrimaryBuffer[s * m_LineCount + t] = static_cast<uint8_t>(cVal);
     }
   }
 }
@@ -289,7 +289,7 @@ void vtkPlusWinProbeVideoSource::FlipTexture(char* data)
   {
     for(unsigned s = 0; s < m_SamplesPerLine; s++)
     {
-      m_BModeBuffer[s * m_LineCount + t] = data[t * m_SamplesPerLine + s];
+      m_PrimaryBuffer[s * m_LineCount + t] = data[t * m_SamplesPerLine + s];
     }
   }
 }
@@ -362,7 +362,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       // and alpha is filled with ones (fully opaque)
       for(unsigned i = 0; i < m_LineCount * m_SamplesPerLine; i++)
       {
-        m_BModeBuffer[i] = static_cast<uint8_t>(frameRGBA[i]);
+        m_PrimaryBuffer[i] = static_cast<uint8_t>(frameRGBA[i]);
       }
       WPFreePointer(frameData);
     }
@@ -393,7 +393,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     {
       for(unsigned i = 0; i < m_PrimarySources.size(); i++)
       {
-        if(m_PrimarySources[i]->AddItem(&m_BModeBuffer[0],
+        if(m_PrimarySources[i]->AddItem(&m_PrimaryBuffer[0],
                                         US_IMG_ORIENT_MF,
                                         frameSize, VTK_UNSIGNED_CHAR,
                                         1, US_IMG_BRIGHTNESS, 0,
@@ -411,7 +411,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       for(unsigned i = 0; i < m_ExtraSources.size(); i++)
       {
         frameSize[0] = m_MWidth;
-        if(m_ExtraSources[i]->AddItem(&m_BModeBuffer[0],
+        if(m_ExtraSources[i]->AddItem(&m_PrimaryBuffer[0],
                                       m_ExtraSources[i]->GetInputImageOrientation(),
                                       frameSize, VTK_UNSIGNED_CHAR,
                                       1, US_IMG_BRIGHTNESS, 16,
@@ -531,7 +531,7 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
              << igsioVideoFrame::GetStringFromUsImageOrientation(m_ExtraSources[i]->GetInputImageOrientation()));
   }
 
-  m_BModeBuffer.resize(m_SamplesPerLine * m_LineCount);
+  m_PrimaryBuffer.resize(m_SamplesPerLine * m_LineCount);
 }
 
 //----------------------------------------------------------------------------
