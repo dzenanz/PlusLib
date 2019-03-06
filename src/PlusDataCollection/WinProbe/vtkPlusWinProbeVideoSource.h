@@ -201,7 +201,7 @@ protected:
   void AdjustBufferSize();
 
   friend int __stdcall frameCallback(int length, char* data, char* hHeader, char* hGeometry);
-  void ReconstructFrame(char* data);
+  void ReconstructFrame(char* data, std::vector<uint8_t>& buffer);
   void FlipTexture(char * data);
   void FrameCallback(int length, char* data, char* hHeader, char* hGeometry);
 
@@ -215,7 +215,8 @@ protected:
   double m_LastTimestamp = 0.0; //used to determine timer restarts and to update timestamp offset
   unsigned m_LineCount = 128;
   unsigned m_SamplesPerLine = 512;
-  std::vector<uint8_t> m_PrimaryBuffer; //avoid reallocating buffer every frame
+  std::vector<uint8_t> m_PrimaryBuffer;
+  std::vector<uint8_t> m_ExtraBuffer;
   bool m_UseDeviceFrameReconstruction = true;
   igsioTrackedFrame::FieldMapType m_CustomFields;
   double m_TimeGainCompensation[8];
@@ -230,7 +231,7 @@ protected:
   bool m_MRevolvingEnabled = false;
   int32_t m_MPRF = 100;
   int32_t m_MLineIndex = 60;
-  int32_t m_MWidth = 128;
+  int32_t m_MWidth = 256;
   int32_t m_MAcousticLineCount = 0;
   int32_t m_MDepth = 0;
   std::vector<vtkPlusDataSource*> m_PrimarySources;

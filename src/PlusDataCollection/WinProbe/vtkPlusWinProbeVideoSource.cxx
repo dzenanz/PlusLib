@@ -243,10 +243,10 @@ int __stdcall frameCallback(int length, char* data, char* hHeader, char* hGeomet
 }
 
 //-----------------------------------------------------------------------------
-void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data)
+void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data, std::vector<uint8_t>& buffer)
 {
   uint16_t* frame = reinterpret_cast<uint16_t*>(data + 16);
-  assert(m_PrimaryBuffer.size() == m_SamplesPerLine * m_LineCount);
+  assert(buffer.size() == m_SamplesPerLine * m_LineCount);
   const float logFactor = m_OutputKnee / std::log(1 + m_Knee);
 
   #pragma omp parallel for
@@ -277,7 +277,7 @@ void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data)
       {
         cVal = m_OutputKnee + (val - m_Knee) * float(255 - m_OutputKnee) / (m_MaxValue - m_Knee);
       }
-      m_PrimaryBuffer[s * m_LineCount + t] = static_cast<uint8_t>(cVal);
+      buffer[s * m_LineCount + t] = static_cast<uint8_t>(cVal);
     }
   }
 }
@@ -370,7 +370,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     {
       if (m_Mode == Mode::M)
       {
-        this->ReconstructFrame(data);
+        this->ReconstructFrame(data, m_ExtraBuffer);
       }
       else // B-mode
       {
@@ -383,27 +383,24 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
         }
         else
         {
-          this->ReconstructFrame(data);
+          this->ReconstructFrame(data, m_PrimaryBuffer);
         }
         WPFreePointer(texture);
       }
     }
 
-    //if(m_Mode == Mode::B || m_Mode == Mode::BRF)
+    for(unsigned i = 0; i < m_PrimarySources.size(); i++)
     {
-      for(unsigned i = 0; i < m_PrimarySources.size(); i++)
+      if(m_PrimarySources[i]->AddItem(&m_PrimaryBuffer[0],
+                                      US_IMG_ORIENT_MF,
+                                      frameSize, VTK_UNSIGNED_CHAR,
+                                      1, US_IMG_BRIGHTNESS, 0,
+                                      this->FrameNumber,
+                                      timestamp,
+                                      timestamp, //no timestamp filtering needed
+                                      &this->m_CustomFields) != PLUS_SUCCESS)
       {
-        if(m_PrimarySources[i]->AddItem(&m_PrimaryBuffer[0],
-                                        US_IMG_ORIENT_MF,
-                                        frameSize, VTK_UNSIGNED_CHAR,
-                                        1, US_IMG_BRIGHTNESS, 0,
-                                        this->FrameNumber,
-                                        timestamp,
-                                        timestamp, //no timestamp filtering needed
-                                        &this->m_CustomFields) != PLUS_SUCCESS)
-        {
-          LOG_WARNING("Error adding item to video source " << m_PrimarySources[i]->GetSourceId());
-        }
+        LOG_WARNING("Error adding item to primary video source " << m_PrimarySources[i]->GetSourceId());
       }
     }
     //else if(m_Mode == Mode::M)
@@ -411,16 +408,16 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       for(unsigned i = 0; i < m_ExtraSources.size(); i++)
       {
         frameSize[0] = m_MWidth;
-        if(m_ExtraSources[i]->AddItem(&m_PrimaryBuffer[0],
-                                      m_ExtraSources[i]->GetInputImageOrientation(),
+        if(m_ExtraSources[i]->AddItem(&m_ExtraBuffer[0],
+                                      US_IMG_ORIENT_MF,
                                       frameSize, VTK_UNSIGNED_CHAR,
-                                      1, US_IMG_BRIGHTNESS, 16,
+                                      1, US_IMG_BRIGHTNESS, 0,
                                       this->FrameNumber,
                                       timestamp,
                                       timestamp, //no timestamp filtering needed
                                       &this->m_CustomFields) != PLUS_SUCCESS)
         {
-          LOG_WARNING("Error adding item to video source " << m_ExtraSources[i]->GetSourceId());
+          LOG_WARNING("Error adding item to extra video source " << m_ExtraSources[i]->GetSourceId());
         }
       }
     }
@@ -445,29 +442,10 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
                                     timestamp,
                                     &m_CustomFields) != PLUS_SUCCESS)
       {
-        LOG_WARNING("Error adding item to video source " << m_ExtraSources[i]->GetSourceId());
+        LOG_WARNING("Error adding item to RF video source " << m_ExtraSources[i]->GetSourceId());
       }
     }
   }
-  //else if(usMode & (M_PostProcess | BFRFALineMMode_SampleData | BFRFALineImage_SampleData | PWD_PostProcess))
-  //{
-  //  assert(length == m_SamplesPerLine * m_LineCount);
-  //  FrameSizeType frameSize = { m_SamplesPerLine, m_LineCount, 1 };
-  //  for(unsigned i = 0; i < m_ExtraSources.size(); i++)
-  //  {
-  //    if(m_ExtraSources[i]->AddItem(data,
-  //                                  m_ExtraSources[i]->GetInputImageOrientation(),
-  //                                  frameSize, VTK_UNSIGNED_CHAR,
-  //                                  1, US_IMG_BRIGHTNESS, 0,
-  //                                  this->FrameNumber,
-  //                                  timestamp,
-  //                                  timestamp,
-  //                                  &m_CustomFields) != PLUS_SUCCESS)
-  //    {
-  //      LOG_WARNING("Error adding item to video source " << m_ExtraSources[i]->GetSourceId());
-  //    }
-  //  }
-  //}
   else if(usMode & CFD)
   {
     //TODO
@@ -512,14 +490,16 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
       m_ExtraSources[i]->SetImageType(US_IMG_RF_REAL);
       m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_FM);
       m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_FM);
+      m_ExtraBuffer.swap(std::vector<uint8_t>()); // deallocate the buffer
     }
     else if (m_Mode == Mode::M)
     {
-      //frameSize[0] = m_MWidth;
+      frameSize[0] = m_MWidth;
       m_ExtraSources[i]->SetPixelType(VTK_UNSIGNED_CHAR);
       m_ExtraSources[i]->SetImageType(US_IMG_BRIGHTNESS);
-      m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_FM);
-      m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_FM);
+      m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_MF);
+      m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_MF);
+      m_ExtraBuffer.resize(m_SamplesPerLine*m_MWidth);
     }
 
     m_ExtraSources[i]->Clear(); // clear current buffer content
