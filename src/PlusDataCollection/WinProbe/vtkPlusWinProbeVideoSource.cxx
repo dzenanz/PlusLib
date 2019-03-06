@@ -307,28 +307,29 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   InputSourceBindings usMode = header->InputSourceBinding;
   unsigned oldSamplesPerLine = m_SamplesPerLine;
 
-  switch(m_Mode) // TODO: do this based on usMode
+  if(usMode & CFD)
   {
-  case vtkPlusWinProbeVideoSource::Mode::B:
-  case vtkPlusWinProbeVideoSource::Mode::BRF:
-  case vtkPlusWinProbeVideoSource::Mode::RF:
-    m_LineCount = brfGeometry->LineCount;
-    m_SamplesPerLine = brfGeometry->SamplesPerLine;
-    break;
-  case vtkPlusWinProbeVideoSource::Mode::M:
-    m_LineCount = mGeometry->LineCount;
-    m_SamplesPerLine = mGeometry->SamplesPerLine;
-    break;
-  case vtkPlusWinProbeVideoSource::Mode::PW:
-    m_LineCount = pwGeometry->NumberOfImageLines;
-    m_SamplesPerLine = pwGeometry->NumberOfImageSamples;
-    break;
-  case vtkPlusWinProbeVideoSource::Mode::CFD:
     m_LineCount = cfdGeometry->LineCount;
     m_SamplesPerLine = cfdGeometry->SamplesPerKernel;
-    break;
-  default:
-    LOG_ERROR("Unknown ultrasound mode: " << (int)m_Mode);
+  }
+  else if(usMode & B || usMode & BFRFALineImage_RFData)
+  {
+    m_LineCount = brfGeometry->LineCount;
+    m_SamplesPerLine = brfGeometry->SamplesPerLine;
+  }
+  else if(usMode & M_PostProcess)
+  {
+    m_LineCount = mGeometry->LineCount;
+    m_SamplesPerLine = mGeometry->SamplesPerLine;
+  }
+  else if(usMode & PWD_PostProcess)
+  {
+    m_LineCount = pwGeometry->NumberOfImageLines;
+    m_SamplesPerLine = pwGeometry->NumberOfImageSamples;
+  }
+  else
+  {
+    LOG_INFO("Unsupported frame type: " << std::hex << usMode);
     return;
   }
 
