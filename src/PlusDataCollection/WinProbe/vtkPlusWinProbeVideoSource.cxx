@@ -339,6 +339,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   if (timestamp < m_LastTimestamp)
   {
     m_TimestampOffset += m_LastTimestamp;
+    LOG_INFO("Hardware timestamp counter restarted");
   }
   m_LastTimestamp = timestamp;
   timestamp += m_TimestampOffset;
@@ -368,9 +369,24 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     }
     else
     {
-      if (m_Mode == Mode::M)
+      if (usMode & M_PostProcess)
       {
         this->ReconstructFrame(data, m_ExtraBuffer);
+        for(unsigned i = 0; i < m_ExtraSources.size(); i++)
+        {
+          frameSize[0] = m_MWidth;
+          if(m_ExtraSources[i]->AddItem(&m_ExtraBuffer[0],
+                                        US_IMG_ORIENT_MF,
+                                        frameSize, VTK_UNSIGNED_CHAR,
+                                        1, US_IMG_BRIGHTNESS, 0,
+                                        this->FrameNumber,
+                                        timestamp,
+                                        timestamp, //no timestamp filtering needed
+                                        &this->m_CustomFields) != PLUS_SUCCESS)
+          {
+            LOG_WARNING("Error adding item to extra video source " << m_ExtraSources[i]->GetSourceId());
+          }
+        }
       }
       else // B-mode
       {
@@ -386,41 +402,23 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
           this->ReconstructFrame(data, m_PrimaryBuffer);
         }
         WPFreePointer(texture);
-      }
-    }
 
-    for(unsigned i = 0; i < m_PrimarySources.size(); i++)
-    {
-      if(m_PrimarySources[i]->AddItem(&m_PrimaryBuffer[0],
-                                      US_IMG_ORIENT_MF,
-                                      frameSize, VTK_UNSIGNED_CHAR,
-                                      1, US_IMG_BRIGHTNESS, 0,
-                                      this->FrameNumber,
-                                      timestamp,
-                                      timestamp, //no timestamp filtering needed
-                                      &this->m_CustomFields) != PLUS_SUCCESS)
-      {
-        LOG_WARNING("Error adding item to primary video source " << m_PrimarySources[i]->GetSourceId());
-      }
-    }
-    //else if(m_Mode == Mode::M)
-    {
-      for(unsigned i = 0; i < m_ExtraSources.size(); i++)
-      {
-        frameSize[0] = m_MWidth;
-        if(m_ExtraSources[i]->AddItem(&m_ExtraBuffer[0],
-                                      US_IMG_ORIENT_MF,
-                                      frameSize, VTK_UNSIGNED_CHAR,
-                                      1, US_IMG_BRIGHTNESS, 0,
-                                      this->FrameNumber,
-                                      timestamp,
-                                      timestamp, //no timestamp filtering needed
-                                      &this->m_CustomFields) != PLUS_SUCCESS)
+        for(unsigned i = 0; i < m_PrimarySources.size(); i++)
         {
-          LOG_WARNING("Error adding item to extra video source " << m_ExtraSources[i]->GetSourceId());
+          if(m_PrimarySources[i]->AddItem(&m_PrimaryBuffer[0],
+                                          US_IMG_ORIENT_MF,
+                                          frameSize, VTK_UNSIGNED_CHAR,
+                                          1, US_IMG_BRIGHTNESS, 0,
+                                          this->FrameNumber,
+                                          timestamp,
+                                          timestamp, //no timestamp filtering needed
+                                          &this->m_CustomFields) != PLUS_SUCCESS)
+          {
+            LOG_WARNING("Error adding item to primary video source " << m_PrimarySources[i]->GetSourceId());
+          }
         }
-      }
-    }
+      } // B-mode
+    } //m_UseDeviceFrameReconstruction
   }
   else if(usMode & B)  //this is B frame, but B-mode source is NOT defined
   {
