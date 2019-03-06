@@ -214,7 +214,7 @@ protected:
   double m_TimestampOffset = 0; //difference between program start time and latest internal timer restart
   double m_LastTimestamp = 0.0; //used to determine timer restarts and to update timestamp offset
   unsigned m_LineCount = 128;
-  unsigned m_SamplesPerLine = 512;
+  unsigned m_SamplesPerLine = 0;
   std::vector<uint8_t> m_PrimaryBuffer;
   std::vector<uint8_t> m_ExtraBuffer;
   bool m_UseDeviceFrameReconstruction = true;

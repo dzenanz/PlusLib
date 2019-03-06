@@ -307,7 +307,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   InputSourceBindings usMode = header->InputSourceBinding;
   unsigned oldSamplesPerLine = m_SamplesPerLine;
 
-  switch(m_Mode)
+  switch(m_Mode) // TODO: do this based on usMode
   {
   case vtkPlusWinProbeVideoSource::Mode::B:
   case vtkPlusWinProbeVideoSource::Mode::BRF:
@@ -334,7 +334,8 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
 
   if(m_SamplesPerLine != oldSamplesPerLine)
   {
-    LOG_INFO("SamplesPerLine has changed. Adjusting spacing and buffer sizes");
+    LOG_INFO("SamplesPerLine has changed from " << oldSamplesPerLine
+      << " to " << m_SamplesPerLine << ". Adjusting spacing and buffer sizes.");
     AdjustBufferSize();
     AdjustSpacing();
   }
@@ -471,7 +472,6 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
 {
   FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
 
-  LOG_DEBUG("Set up image buffers for WinProbe");
   for(unsigned i = 0; i < m_PrimarySources.size(); i++)
   {
     m_PrimarySources[i]->Clear(); // clear current buffer content
@@ -485,6 +485,7 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
              << ", pixel type: " << vtkImageScalarTypeNameMacro(m_PrimarySources[i]->GetPixelType())
              << ", buffer image orientation: "
              << igsioVideoFrame::GetStringFromUsImageOrientation(m_PrimarySources[i]->GetInputImageOrientation()));
+    m_PrimaryBuffer.resize(m_SamplesPerLine * m_LineCount);
   }
 
   for(unsigned i = 0; i < m_ExtraSources.size(); i++)
@@ -517,8 +518,6 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
              << ", buffer image orientation: "
              << igsioVideoFrame::GetStringFromUsImageOrientation(m_ExtraSources[i]->GetInputImageOrientation()));
   }
-
-  m_PrimaryBuffer.resize(m_SamplesPerLine * m_LineCount);
 }
 
 //----------------------------------------------------------------------------
