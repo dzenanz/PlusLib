@@ -305,6 +305,8 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   PWGeometryStruct* pwGeometry = (PWGeometryStruct*)hGeometry;
   this->FrameNumber = header->TotalFrameCounter;
   InputSourceBindings usMode = header->InputSourceBinding;
+  unsigned oldSamplesPerLine = m_SamplesPerLine;
+
   switch(m_Mode)
   {
   case vtkPlusWinProbeVideoSource::Mode::B:
@@ -330,7 +332,14 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     return;
   }
 
-  //timestamp counters are in milliseconds since last recreate tables call
+  if(m_SamplesPerLine != oldSamplesPerLine)
+  {
+    LOG_INFO("SamplesPerLine has changed. Adjusting spacing and buffer sizes");
+    AdjustBufferSize();
+    AdjustSpacing();
+  }
+
+  //timestamp counters are in milliseconds since last sequencer restart
   double timestamp = header->TimeStamp / 1000.0;
   if(timestamp == 0.0) // some change is being applied, so this frame is not valid
   {
@@ -817,9 +826,6 @@ PlusStatus vtkPlusWinProbeVideoSource::SetScanDepthMm(float depth)
     SetPendingRecreateTables(true);
     //what we requested might be only approximately satisfied
     m_ScanDepth = ::GetSSDepth();
-    m_SamplesPerLine = static_cast<unsigned int>(GetSSSamplesPerLine()); //this and decimation change depending on depth
-    AdjustSpacing();
-    AdjustBufferSize();
     if(Recording)
     {
       WPExecute();
