@@ -243,18 +243,18 @@ int __stdcall frameCallback(int length, char* data, char* hHeader, char* hGeomet
 }
 
 //-----------------------------------------------------------------------------
-void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data, std::vector<uint8_t>& buffer)
+void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data, std::vector<uint8_t>& buffer, const FrameSizeType& frameSize)
 {
   uint16_t* frame = reinterpret_cast<uint16_t*>(data + 16);
-  assert(buffer.size() == m_SamplesPerLine * m_LineCount);
+  assert(buffer.size() == frameSize[0] * frameSize[1]);
   const float logFactor = m_OutputKnee / std::log(1 + m_Knee);
 
   #pragma omp parallel for
-  for(unsigned t = 0; t < m_LineCount; t++)
+  for(unsigned t = 0; t < frameSize[0]; t++)
   {
-    for(unsigned s = 0; s < m_SamplesPerLine; s++)
+    for(unsigned s = 0; s < frameSize[1]; s++)
     {
-      uint16_t val = frame[t * m_SamplesPerLine + s];
+      uint16_t val = frame[t * frameSize[1] + s];
       if(val <= m_MinValue)  // subtract noise floor
       {
         val = 0;
@@ -277,19 +277,19 @@ void vtkPlusWinProbeVideoSource::ReconstructFrame(char* data, std::vector<uint8_
       {
         cVal = m_OutputKnee + (val - m_Knee) * float(255 - m_OutputKnee) / (m_MaxValue - m_Knee);
       }
-      buffer[s * m_LineCount + t] = static_cast<uint8_t>(cVal);
+      buffer[s * frameSize[0] + t] = static_cast<uint8_t>(cVal);
     }
   }
 }
 
-void vtkPlusWinProbeVideoSource::FlipTexture(char* data)
+void vtkPlusWinProbeVideoSource::FlipTexture(char* data, const FrameSizeType& frameSize)
 {
   #pragma omp parallel for
-  for(unsigned t = 0; t < m_LineCount; t++)
+  for(unsigned t = 0; t < frameSize[0]; t++)
   {
-    for(unsigned s = 0; s < m_SamplesPerLine; s++)
+    for(unsigned s = 0; s < frameSize[1]; s++)
     {
-      m_PrimaryBuffer[s * m_LineCount + t] = data[t * m_SamplesPerLine + s];
+      m_PrimaryBuffer[s * frameSize[0] + t] = data[t * frameSize[1] + s];
     }
   }
 }
@@ -305,43 +305,52 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   PWGeometryStruct* pwGeometry = (PWGeometryStruct*)hGeometry;
   this->FrameNumber = header->TotalFrameCounter;
   InputSourceBindings usMode = header->InputSourceBinding;
-  unsigned oldSamplesPerLine = m_SamplesPerLine;
+  FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
 
   if(usMode & CFD)
   {
-    m_LineCount = cfdGeometry->LineCount;
-    m_SamplesPerLine = cfdGeometry->SamplesPerKernel;
+    frameSize[0] = cfdGeometry->LineCount;
+    frameSize[1] = cfdGeometry->SamplesPerKernel;
   }
   else if(usMode & B || usMode & BFRFALineImage_RFData)
   {
-    m_LineCount = brfGeometry->LineCount;
-    m_SamplesPerLine = brfGeometry->SamplesPerLine;
+    frameSize[0] = brfGeometry->LineCount;
+    frameSize[1] = brfGeometry->SamplesPerLine;
+    if(frameSize[1] != m_SamplesPerLine)
+    {
+      LOG_INFO("SamplesPerLine has changed from " << m_SamplesPerLine
+               << " to " << frameSize[1] << ". Adjusting spacing and buffer sizes.");
+      m_SamplesPerLine = frameSize[1];
+      AdjustPrimaryBufferSize();
+      AdjustExtraBufferSize();
+      AdjustSpacing();
+    }
   }
   else if(usMode & M_PostProcess)
   {
-    m_LineCount = mGeometry->LineCount;
-    m_SamplesPerLine = mGeometry->SamplesPerLine;
+    frameSize[0] = mGeometry->LineCount;
+    frameSize[1] = mGeometry->SamplesPerLine;
+    if(m_ExtraSources.empty())
+    {
+      return; //the source is not defined, do not waste time on processing this frame
+    }
+    if(frameSize != m_ExtraSources[0]->GetInputFrameSize())
+    {
+      LOG_INFO("SamplesPerLine has changed from " << m_ExtraSources[0]->GetInputFrameSize()[1]
+               << " to " << frameSize[1] << ". Adjusting buffer size.");
+      m_SamplesPerLine = frameSize[1];
+      AdjustExtraBufferSize();
+    }
   }
   else if(usMode & PWD_PostProcess)
   {
-    m_LineCount = pwGeometry->NumberOfImageLines;
-    m_SamplesPerLine = pwGeometry->NumberOfImageSamples;
+    frameSize[0] = pwGeometry->NumberOfImageLines;
+    frameSize[1] = pwGeometry->NumberOfImageSamples;
   }
   else
   {
     LOG_INFO("Unsupported frame type: " << std::hex << usMode);
     return;
-  }
-
-  FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
-
-  if(m_SamplesPerLine != oldSamplesPerLine)
-  {
-    LOG_INFO("SamplesPerLine has changed from " << oldSamplesPerLine
-      << " to " << m_SamplesPerLine << ". Adjusting spacing and buffer sizes.");
-    AdjustPrimaryBufferSize();
-    AdjustExtraBufferSize();
-    AdjustSpacing();
   }
 
   //timestamp counters are in milliseconds since last sequencer restart
@@ -363,19 +372,19 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       || usMode & M_PostProcess && !m_ExtraSources.empty() // M-mode and extra source is defined
     )
   {
-    assert(length == m_SamplesPerLine * m_LineCount * sizeof(uint16_t) + 16); //frame + header
-    FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
+    assert(length == frameSize[0] * frameSize[1] * sizeof(uint16_t) + 16); //frame + header
+    FrameSizeType frameSize = { frameSize[0], frameSize[1], 1 };
 
     if(m_UseDeviceFrameReconstruction)
     {
       char* frameData = nullptr;
       int length = WPSaveImageToPointer(&frameData);
-      assert(length == m_LineCount * m_SamplesPerLine * sizeof(uint32_t));
+      assert(length == frameSize[0] * frameSize[1] * sizeof(uint32_t));
       auto* frameRGBA = reinterpret_cast<uint32_t*>(frameData);
 
       // all the color channels are the same for B-mode
       // and alpha is filled with ones (fully opaque)
-      for(unsigned i = 0; i < m_LineCount * m_SamplesPerLine; i++)
+      for(unsigned i = 0; i < frameSize[0] * frameSize[1]; i++)
       {
         m_PrimaryBuffer[i] = static_cast<uint8_t>(frameRGBA[i]);
       }
@@ -385,7 +394,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     {
       if(usMode & M_PostProcess)
       {
-        this->ReconstructFrame(data, m_ExtraBuffer);
+        this->ReconstructFrame(data, m_ExtraBuffer, frameSize);
         for(unsigned i = 0; i < m_ExtraSources.size(); i++)
         {
           frameSize[0] = m_MWidth;
@@ -406,14 +415,14 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       {
         char* texture = nullptr;
         int tLength = WPDXGetFusedTexData(&texture);
-        assert(tLength == m_SamplesPerLine * m_LineCount);
+        assert(tLength == frameSize[0] * frameSize[1]);
         if(tLength > 0)
         {
-          this->FlipTexture(texture);
+          this->FlipTexture(texture, frameSize);
         }
         else
         {
-          this->ReconstructFrame(data, m_PrimaryBuffer);
+          this->ReconstructFrame(data, m_PrimaryBuffer, frameSize);
         }
         WPFreePointer(texture);
 
@@ -441,13 +450,13 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   }
   else if(usMode & BFRFALineImage_RFData)
   {
-    assert(length == m_SamplesPerLine * brfGeometry->Decimation * m_LineCount * sizeof(int32_t));
-    FrameSizeType frameSize = { m_SamplesPerLine* brfGeometry->Decimation, m_LineCount, 1 };
+    assert(length == frameSize[1] * brfGeometry->Decimation * frameSize[0] * sizeof(int32_t));
+    FrameSizeType frameSizeRF = { frameSize[1]* brfGeometry->Decimation, frameSize[0], 1 }; // x and y axes flipped on purpose
     for(unsigned i = 0; i < m_ExtraSources.size(); i++)
     {
       if(m_ExtraSources[i]->AddItem(data,
                                     US_IMG_ORIENT_FM,
-                                    frameSize, VTK_INT,
+                                    frameSizeRF, VTK_INT,
                                     1, US_IMG_RF_REAL, 0,
                                     this->FrameNumber,
                                     timestamp,

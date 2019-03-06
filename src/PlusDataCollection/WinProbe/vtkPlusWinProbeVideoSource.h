@@ -202,8 +202,8 @@ protected:
   void AdjustExtraBufferSize();
 
   friend int __stdcall frameCallback(int length, char* data, char* hHeader, char* hGeometry);
-  void ReconstructFrame(char* data, std::vector<uint8_t>& buffer);
-  void FlipTexture(char* data);
+  void ReconstructFrame(char* data, std::vector<uint8_t>& buffer, const FrameSizeType& frameSize);
+  void FlipTexture(char* data, const FrameSizeType& frameSize);
   void FrameCallback(int length, char* data, char* hHeader, char* hGeometry);
 
   float m_ScanDepth = 26.0; //mm
