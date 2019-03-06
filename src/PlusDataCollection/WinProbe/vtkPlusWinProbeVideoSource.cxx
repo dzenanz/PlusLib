@@ -370,7 +370,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     {
       if (m_Mode == Mode::M)
       {
-        //this->ReconstructFrame(data);
+        this->ReconstructFrame(data);
       }
       else // B-mode
       {
@@ -389,12 +389,12 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       }
     }
 
-    if(m_Mode == Mode::B || m_Mode == Mode::BRF)
+    //if(m_Mode == Mode::B || m_Mode == Mode::BRF)
     {
       for(unsigned i = 0; i < m_PrimarySources.size(); i++)
       {
         if(m_PrimarySources[i]->AddItem(&m_BModeBuffer[0],
-                                        m_PrimarySources[i]->GetInputImageOrientation(),
+                                        US_IMG_ORIENT_MF,
                                         frameSize, VTK_UNSIGNED_CHAR,
                                         1, US_IMG_BRIGHTNESS, 0,
                                         this->FrameNumber,
@@ -406,12 +406,12 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
         }
       }
     }
-    else if(m_Mode == Mode::M)
+    //else if(m_Mode == Mode::M)
     {
       for(unsigned i = 0; i < m_ExtraSources.size(); i++)
       {
         frameSize[0] = m_MWidth;
-        if(m_ExtraSources[i]->AddItem(data,
+        if(m_ExtraSources[i]->AddItem(&m_BModeBuffer[0],
                                       m_ExtraSources[i]->GetInputImageOrientation(),
                                       frameSize, VTK_UNSIGNED_CHAR,
                                       1, US_IMG_BRIGHTNESS, 16,
@@ -437,7 +437,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     for(unsigned i = 0; i < m_ExtraSources.size(); i++)
     {
       if(m_ExtraSources[i]->AddItem(data,
-                                    m_ExtraSources[i]->GetInputImageOrientation(),
+                                    US_IMG_ORIENT_FM,
                                     frameSize, VTK_INT,
                                     1, US_IMG_RF_REAL, 0,
                                     this->FrameNumber,
@@ -515,7 +515,7 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
     }
     else if (m_Mode == Mode::M)
     {
-      frameSize[0] = m_MWidth;
+      //frameSize[0] = m_MWidth;
       m_ExtraSources[i]->SetPixelType(VTK_UNSIGNED_CHAR);
       m_ExtraSources[i]->SetImageType(US_IMG_BRIGHTNESS);
       m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_FM);
