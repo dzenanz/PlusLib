@@ -345,7 +345,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   {
     return; // ignore this frame
   }
-  if (timestamp < m_LastTimestamp)
+  if(timestamp < m_LastTimestamp)
   {
     m_TimestampOffset += m_LastTimestamp;
     LOG_INFO("Hardware timestamp counter restarted");
@@ -355,7 +355,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
   LOG_DEBUG("Frame: " << FrameNumber << ". Mode: " << std::setw(4) << std::hex << usMode << ". Timestamp: " << timestamp);
 
   if(usMode & B && !m_PrimarySources.empty() // B-mode and primary source is defined
-    || usMode & M_PostProcess && !m_ExtraSources.empty() // M-mode and extra source is defined
+      || usMode & M_PostProcess && !m_ExtraSources.empty() // M-mode and extra source is defined
     )
   {
     assert(length == m_SamplesPerLine * m_LineCount * sizeof(uint16_t) + 16); //frame + header
@@ -378,7 +378,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     }
     else
     {
-      if (usMode & M_PostProcess)
+      if(usMode & M_PostProcess)
       {
         this->ReconstructFrame(data, m_ExtraBuffer);
         for(unsigned i = 0; i < m_ExtraSources.size(); i++)
@@ -489,7 +489,7 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
 
   for(unsigned i = 0; i < m_ExtraSources.size(); i++)
   {
-    if (m_Mode == Mode::RF || m_Mode == Mode::BRF)
+    if(m_Mode == Mode::RF || m_Mode == Mode::BRF)
     {
       frameSize[0] = m_SamplesPerLine * ::GetSSDecimation();
       frameSize[1] = m_LineCount;
@@ -499,14 +499,14 @@ void vtkPlusWinProbeVideoSource::AdjustBufferSize()
       m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_FM);
       m_ExtraBuffer.swap(std::vector<uint8_t>()); // deallocate the buffer
     }
-    else if (m_Mode == Mode::M)
+    else if(m_Mode == Mode::M)
     {
       frameSize[0] = m_MWidth;
       m_ExtraSources[i]->SetPixelType(VTK_UNSIGNED_CHAR);
       m_ExtraSources[i]->SetImageType(US_IMG_BRIGHTNESS);
       m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_MF);
       m_ExtraSources[i]->SetInputImageOrientation(US_IMG_ORIENT_MF);
-      m_ExtraBuffer.resize(m_SamplesPerLine*m_MWidth);
+      m_ExtraBuffer.resize(m_SamplesPerLine * m_MWidth);
     }
 
     m_ExtraSources[i]->Clear(); // clear current buffer content
