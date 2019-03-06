@@ -321,8 +321,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       LOG_INFO("SamplesPerLine has changed from " << m_SamplesPerLine
                << " to " << frameSize[1] << ". Adjusting spacing and buffer sizes.");
       m_SamplesPerLine = frameSize[1];
-      AdjustPrimaryBufferSize();
-      AdjustExtraBufferSize();
+      AdjustBufferSizes();
       AdjustSpacing();
     }
   }
@@ -339,7 +338,8 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
       LOG_INFO("SamplesPerLine has changed from " << m_ExtraSources[0]->GetInputFrameSize()[1]
                << " to " << frameSize[1] << ". Adjusting buffer size.");
       m_SamplesPerLine = frameSize[1];
-      AdjustExtraBufferSize();
+      AdjustBufferSizes();
+      AdjustSpacing();
     }
   }
   else if(usMode & PWD_PostProcess)
@@ -373,7 +373,6 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
     )
   {
     assert(length == frameSize[0] * frameSize[1] * sizeof(uint16_t) + 16); //frame + header
-    FrameSizeType frameSize = { frameSize[0], frameSize[1], 1 };
 
     if(m_UseDeviceFrameReconstruction)
     {
@@ -481,7 +480,7 @@ void vtkPlusWinProbeVideoSource::FrameCallback(int length, char* data, char* hHe
 }
 
 //----------------------------------------------------------------------------
-void vtkPlusWinProbeVideoSource::AdjustPrimaryBufferSize()
+void vtkPlusWinProbeVideoSource::AdjustBufferSizes()
 {
   FrameSizeType frameSize = { m_LineCount, m_SamplesPerLine, 1 };
 
@@ -500,11 +499,6 @@ void vtkPlusWinProbeVideoSource::AdjustPrimaryBufferSize()
              << igsioVideoFrame::GetStringFromUsImageOrientation(m_PrimarySources[i]->GetInputImageOrientation()));
     m_PrimaryBuffer.resize(m_SamplesPerLine * m_LineCount);
   }
-}
-
-void vtkPlusWinProbeVideoSource::AdjustExtraBufferSize()
-{
-  FrameSizeType frameSize = { m_MWidth, m_SamplesPerLine, 1 };
 
   for(unsigned i = 0; i < m_ExtraSources.size(); i++)
   {
@@ -520,6 +514,7 @@ void vtkPlusWinProbeVideoSource::AdjustExtraBufferSize()
     }
     else if(m_Mode == Mode::M)
     {
+      frameSize[0] = m_MWidth;
       m_ExtraSources[i]->SetPixelType(VTK_UNSIGNED_CHAR);
       m_ExtraSources[i]->SetImageType(US_IMG_BRIGHTNESS);
       m_ExtraSources[i]->SetOutputImageOrientation(US_IMG_ORIENT_MF);

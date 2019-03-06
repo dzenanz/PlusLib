@@ -198,8 +198,7 @@ protected:
   void AdjustSpacing();
 
   /*! Updates buffer size based on current depth */
-  void AdjustPrimaryBufferSize();
-  void AdjustExtraBufferSize();
+  void AdjustBufferSizes();
 
   friend int __stdcall frameCallback(int length, char* data, char* hHeader, char* hGeometry);
   void ReconstructFrame(char* data, std::vector<uint8_t>& buffer, const FrameSizeType& frameSize);
