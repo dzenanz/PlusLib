@@ -57,6 +57,12 @@ public:
   /* Get the scan depth of US probe (mm) */
   float GetScanDepthMm();
 
+   /* Set the scan depth of US probe (mm) */
+  PlusStatus SetSSDecimation(uint8_t value);
+
+  /* Get the scan depth of US probe (mm) */
+  uint8_t GetSSDecimation();
+
   /* Get the width of current transducer (mm) */
   float GetTransducerWidthMm();
 
@@ -80,6 +86,12 @@ public:
 
   /* Whether or not to use device's built-in frame reconstruction */
   bool GetUseDeviceFrameReconstruction() { return m_UseDeviceFrameReconstruction; }
+
+  /* Whether or not to use device's built-in frame reconstruction */
+  void SetUseDefaultDecimation(bool value) { m_UseDefaultDecimation = value; }
+
+  /* Whether or not to use device's built-in frame reconstruction */
+  bool GetUseDefaultDecimation() { return m_UseDefaultDecimation; }
 
   /*! Set ON/OFF of collecting US data. */
   PlusStatus FreezeDevice(bool freeze);
@@ -237,6 +249,8 @@ protected:
   int32_t m_MWidth = 256;
   int32_t m_MAcousticLineCount = 0;
   int32_t m_MDepth = 0;
+  uint8_t m_SSDecimation= 2;
+  bool m_UseDefaultDecimation = true;
   std::vector<vtkPlusDataSource*> m_PrimarySources;
   std::vector<vtkPlusDataSource*> m_ExtraSources;
 

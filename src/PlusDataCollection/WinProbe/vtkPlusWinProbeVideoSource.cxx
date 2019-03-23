@@ -61,6 +61,7 @@ PlusStatus vtkPlusWinProbeVideoSource::ReadConfiguration(vtkXMLDataElement* root
   XML_READ_BOOL_ATTRIBUTE_OPTIONAL(UseDeviceFrameReconstruction, deviceConfig);
   XML_READ_BOOL_ATTRIBUTE_OPTIONAL(SpatialCompoundEnabled, deviceConfig);
   XML_READ_BOOL_ATTRIBUTE_OPTIONAL(MRevolvingEnabled, deviceConfig);
+  XML_READ_BOOL_ATTRIBUTE_OPTIONAL(UseDefaultDecimation, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(float, TransmitFrequencyMHz, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(float, ScanDepthMm, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(float, SpatialCompoundAngle, deviceConfig);
@@ -76,6 +77,7 @@ PlusStatus vtkPlusWinProbeVideoSource::ReadConfiguration(vtkXMLDataElement* root
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(unsigned long, MaxValue, deviceConfig); //implicit type conversion
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(unsigned long, LogLinearKnee, deviceConfig); //implicit type conversion
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(unsigned long, LogMax, deviceConfig); //implicit type conversion
+  XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(unsigned long, SSDecimation, deviceConfig); //implicit type conversion
   const char* strMode = deviceConfig->GetAttribute("Mode");
   if(strMode)
   {
@@ -109,6 +111,7 @@ PlusStatus vtkPlusWinProbeVideoSource::WriteConfiguration(vtkXMLDataElement* roo
   deviceConfig->SetAttribute("UseDeviceFrameReconstruction", this->m_UseDeviceFrameReconstruction ? "TRUE" : "FALSE");
   deviceConfig->SetAttribute("SpatialCompoundEnabled", this->GetSpatialCompoundEnabled() ? "TRUE" : "FALSE");
   deviceConfig->SetAttribute("MRevolvingEnabled", this->GetMRevolvingEnabled() ? "TRUE" : "FALSE");
+  deviceConfig->SetAttribute("UseDefaultDecimation", this->m_UseDefaultDecimation ? "TRUE" : "FALSE");
   deviceConfig->SetFloatAttribute("TransmitFrequencyMHz", this->GetTransmitFrequencyMHz());
   deviceConfig->SetFloatAttribute("ScanDepthMm", this->GetScanDepthMm());
   deviceConfig->SetFloatAttribute("SpatialCompoundAngle", this->GetSpatialCompoundAngle());
@@ -124,6 +127,7 @@ PlusStatus vtkPlusWinProbeVideoSource::WriteConfiguration(vtkXMLDataElement* roo
   deviceConfig->SetUnsignedLongAttribute("MaxValue", this->GetMaxValue());
   deviceConfig->SetUnsignedLongAttribute("LogLinearKnee", this->GetLogLinearKnee());
   deviceConfig->SetUnsignedLongAttribute("LogMax", this->GetLogMax());
+  deviceConfig->SetUnsignedLongAttribute("SSDecimation", this->GetSSDecimation());
   deviceConfig->SetAttribute("Mode", ModeToString(this->m_Mode).c_str());
 
   deviceConfig->SetVectorAttribute("TimeGainCompensation", 8, m_TimeGainCompensation);
@@ -798,6 +802,30 @@ uint8_t vtkPlusWinProbeVideoSource::GetVoltage()
 }
 
 //----------------------------------------------------------------------------
+PlusStatus vtkPlusWinProbeVideoSource::SetSSDecimation(uint8_t value)
+{
+  if(Connected)
+  {
+    ::SetSSDecimation(value);
+    SetPendingRecreateTables(true);
+    //what we requested might be only approximately satisfied
+    m_SSDecimation = ::GetSSDecimation();
+    LOG_INFO("Decimation set:" << m_SSDecimation << " " << value);
+  }
+  return PLUS_SUCCESS;
+}
+
+//----------------------------------------------------------------------------
+uint8_t vtkPlusWinProbeVideoSource::GetSSDecimation()
+{
+  if(Connected)
+  {
+    m_SSDecimation = ::GetSSDecimation();
+  }
+  return m_SSDecimation;
+}
+
+//----------------------------------------------------------------------------
 PlusStatus vtkPlusWinProbeVideoSource::SetScanDepthMm(float depth)
 {
   m_ScanDepth = depth;
@@ -808,6 +836,10 @@ PlusStatus vtkPlusWinProbeVideoSource::SetScanDepthMm(float depth)
       WPStopScanning();
     }
     ::SetSSDepth(depth);
+    if(!m_UseDefaultDecimation)
+    {
+      SetSSDecimation(m_SSDecimation);  // Apply decimation if custom use specified.
+    }
     SetPendingRecreateTables(true);
     //what we requested might be only approximately satisfied
     m_ScanDepth = ::GetSSDepth();
