@@ -16,7 +16,7 @@
  \brief Class for acquiring ultrasound images from Capistrano Labs USB ultrasound systems.
 
  Requires PLUS_USE_CAPISTRANO_VIDEO option in CMake.
- Requires the Capistrano cSDK2019, cSDK2018, cSDK2016, or cSDK2013 (SDK provided by Capistrano Labs).
+ Requires the Capistrano cSDK2019.2, cSDK2019, cSDK2018, cSDK2016, or cSDK2013 (SDK provided by Capistrano Labs).
 
  \ingroup PlusLibDataCollection.
 */
@@ -43,7 +43,7 @@ public:
   /*! Get the version of SDK */
   virtual std::string GetSdkVersion();
 
-#if defined CAPISTRANO_SDK2019 || CAPISTRANO_SDK2018
+#if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
   /*! Get the hardware version. */
   virtual int GetHardwareVersion();
 
@@ -185,6 +185,26 @@ public:
   /*! Checks whether the device is frozen or live. */
   bool IsFrozen();
 
+#ifdef CAPISTRANO_SDK2019_2
+  /*! Set MIS Mode on/off.
+  * When MIS mode is turned on, the bidirectional mode for imaging is automatically set.
+  * One should not return to unidirectional mode while MIS mode is on.
+  * When turning off MIS mode, the system is set back to unidirectional mode, automatically, again.*/
+  PlusStatus SetMISMode(bool mode);
+
+  /* Get the MIS Mode state. */
+  bool GetMISMode();
+
+  /*! Set the pulse period used for the MIS mode.
+  * The number written into the register will determine the number of 240 MHz clock periods, plus one.
+  * That is, if 0 is written, that corresponds to 1, 240 MHz clock (or about 4.2 ns). A value of 50 would be 51 clocks (or 51*4.2ns = 214.2 ns).
+  * The maximum value written can be 126 (corresponding to 127 clocks which is 533.4 ns). */
+  PlusStatus SetMISPulsePeriod(unsigned int val);
+
+  /*! Get the pulse period used for the MIS mode. */
+  unsigned int GetMISPulsePeriod();
+#endif
+
 protected:
   /*! Constructor */
   vtkPlusCapistranoVideoSource();
@@ -265,6 +285,7 @@ protected:
 
   bool                           Frozen;
   bool                           UpdateParameters;
+  bool                           MISMode;
   bool                           BidirectionalMode;
   int                            ProbeID;
   int                            ClockDivider;

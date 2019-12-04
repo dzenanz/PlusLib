@@ -710,7 +710,7 @@ std::string vtkPlusCapistranoVideoSource::GetSdkVersion()
 }
 
 // ----------------------------------------------------------------------------
-#if defined CAPISTRANO_SDK2019 || CAPISTRANO_SDK2018
+#if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
 int vtkPlusCapistranoVideoSource::GetHardwareVersion()
 {
   return usbHardwareVersion();
@@ -742,6 +742,7 @@ vtkPlusCapistranoVideoSource::vtkPlusCapistranoVideoSource()
   this->UpdateParameters                       = true;
 
   // Initialize US probe parameters ----------------------------------------
+  this->MISMode                                = false;
   this->BidirectionalMode                      = false;
   this->ProbeID                                = 0;
   this->ClockDivider                           = 2;       //1
@@ -846,7 +847,7 @@ PlusStatus vtkPlusCapistranoVideoSource::SetupProbe(int probeID)
   }
 
   // Check How many US probe are connected. --------------------------------
-#if defined CAPISTRANO_SDK2019 || CAPISTRANO_SDK2018
+#if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
   int numberOfAttachedBoards = usbNumberAttachedBoards();
 #else //cSDK2013 or cSDK2016
   int numberOfAttachedBoards = usbNumberAttachedProbes();
@@ -1199,6 +1200,21 @@ PlusStatus vtkPlusCapistranoVideoSource::InternalUpdate()
   //igsioTrackedFrame::FieldMapType customFields;
   const double unfilteredTimestamp = vtkIGSIOAccurateTimer::GetSystemTime();
 
+  if (this->MISMode)
+  {
+    switch (usbWriteSpecialFunction(0x6d697303, 0))
+    {
+      // NOTE: One should always check this and not assume the frames alternate.
+      // While alternating is normal, if a probe is dropped, bumped or some related event happens,
+      // a frame could be missed but this will self correct if the function to check is used.
+      case 0:  // B-Mode image
+        // drop the frame
+        return PLUS_SUCCESS;
+      case 1:  // MIS image
+        break;
+    }
+  }
+
   RETURN_WITH_FAIL_IF(aSource->AddItem((void*)this->Internal->Bitmap.bmBits,
                                        aSource->GetInputImageOrientation(),
                                        frameSizeInPx, VTK_UNSIGNED_CHAR,
@@ -1325,12 +1341,40 @@ PlusStatus vtkPlusCapistranoVideoSource::SetUpdateParameters(bool b)
 }
 
 // ----------------------------------------------------------------------------
+#ifdef CAPISTRANO_SDK2019_2
+PlusStatus vtkPlusCapistranoVideoSource::SetMISMode(bool mode)
+{
+  this->MISMode = mode;
+  usbWriteSpecialFunction(0x6d697300, mode);
+  this->BidirectionalMode = mode;
+  return PLUS_SUCCESS;
+}
+// ----------------------------------------------------------------------------
+bool vtkPlusCapistranoVideoSource::GetMISMode()
+{
+  return this->MISMode;
+}
+
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusCapistranoVideoSource::SetMISPulsePeriod(unsigned int val)
+{
+  usbWriteSpecialFunction(0x6d697301, val);
+  return PLUS_SUCCESS;
+}
+// ----------------------------------------------------------------------------
+unsigned int vtkPlusCapistranoVideoSource::GetMISPulsePeriod()
+{
+  return usbWriteSpecialFunction(0x6d697302, 0);
+}
+#endif
+
+// ----------------------------------------------------------------------------
 PlusStatus vtkPlusCapistranoVideoSource::SetBidirectionalMode(bool mode)
 {
-  if (mode!= this->BidirectionalMode)
+  if (mode != this->BidirectionalMode)
   {
     this->BidirectionalMode = mode;
-    if (this->Connected)
+    if (this->Connected && !this->MISMode)  // One should not return to unidirectional mode while MIS mode is on.
     {
       if (mode)
       {
