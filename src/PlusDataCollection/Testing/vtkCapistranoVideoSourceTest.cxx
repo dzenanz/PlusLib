@@ -317,7 +317,7 @@ int main(int argc, char* argv[])
 
 	LOG_INFO("SDK version: " << capistranoDevice->GetSdkVersion());
 
-#if defined CAPISTRANO_SDK2019 || CAPISTRANO_SDK2018
+#if defined CAPISTRANO_SDK2019_2 || CAPISTRANO_SDK2019 || CAPISTRANO_SDK2018
     LOG_INFO("Hardware version: " << capistranoDevice->GetHardwareVersion());
     LOG_INFO("High-pass filter: " << capistranoDevice->GetHighPassFilter());
     #ifdef CAPISTRANO_SDK2018
