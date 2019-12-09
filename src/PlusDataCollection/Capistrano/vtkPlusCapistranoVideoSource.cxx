@@ -1535,6 +1535,11 @@ PlusStatus vtkPlusCapistranoVideoSource::SetPulseVoltage(float pv)
   return this->Internal->ImagingParameters->SetProbeVoltage(pv);
 }
 
+float vtkPlusCapistranoVideoSource::GetPulseVoltage()
+{
+  return usbPulseVoltage();
+}
+
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusCapistranoVideoSource::SetSoundVelocity(float ss)
 {
