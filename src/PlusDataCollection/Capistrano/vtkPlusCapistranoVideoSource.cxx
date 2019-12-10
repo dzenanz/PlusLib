@@ -710,23 +710,32 @@ std::string vtkPlusCapistranoVideoSource::GetSdkVersion()
 }
 
 // ----------------------------------------------------------------------------
-#if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
 int vtkPlusCapistranoVideoSource::GetHardwareVersion()
 {
+#if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
   return usbHardwareVersion();
+#else
+  return int("Only implemented with Capistrano SDK 2018 and newer.");
+#endif
 }
 
 int vtkPlusCapistranoVideoSource::GetHighPassFilter()
 {
+#if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
   return usbHighPassFilter();
+#else
+  return int("Only implemented with Capistrano SDK 2018 and newer.");
+#endif
 }
-#ifdef CAPISTRANO_SDK2018
+
 int vtkPlusCapistranoVideoSource::GetLowPassFilter()
 {
+#if defined(CAPISTRANO_SDK2018)
   return usbLowPassFilter();
+#else
+  return int("Only implemented with Capistrano SDK 2018.");
+#endif
 }
-#endif
-#endif
 
 
 // ------------------------------------------------------------------------
@@ -1341,13 +1350,16 @@ PlusStatus vtkPlusCapistranoVideoSource::SetUpdateParameters(bool b)
 }
 
 // ----------------------------------------------------------------------------
-#ifdef CAPISTRANO_SDK2019_2
 PlusStatus vtkPlusCapistranoVideoSource::SetMISMode(bool mode)
 {
+#if defined(CAPISTRANO_SDK2019_2)
   this->MISMode = mode;
   usbWriteSpecialFunction(0x6d697300, mode);
   this->BidirectionalMode = mode;
   return PLUS_SUCCESS;
+#else
+  return PLUS_FAIL;
+#endif
 }
 // ----------------------------------------------------------------------------
 bool vtkPlusCapistranoVideoSource::GetMISMode()
@@ -1358,15 +1370,22 @@ bool vtkPlusCapistranoVideoSource::GetMISMode()
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusCapistranoVideoSource::SetMISPulsePeriod(unsigned int val)
 {
+#if defined(CAPISTRANO_SDK2019_2)
   usbWriteSpecialFunction(0x6d697301, val);
   return PLUS_SUCCESS;
+#else
+  return PLUS_FAIL;
+#endif
 }
 // ----------------------------------------------------------------------------
 unsigned int vtkPlusCapistranoVideoSource::GetMISPulsePeriod()
 {
+#if defined(CAPISTRANO_SDK2019_2)
   return usbWriteSpecialFunction(0x6d697302, 0);
-}
+#else
+  return int("Only implemented with Capistrano SDK 2019.2 and newer.");
 #endif
+}
 
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusCapistranoVideoSource::SetBidirectionalMode(bool mode)

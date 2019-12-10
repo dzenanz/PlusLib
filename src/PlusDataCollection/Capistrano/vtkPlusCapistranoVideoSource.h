@@ -43,17 +43,14 @@ public:
   /*! Get the version of SDK */
   virtual std::string GetSdkVersion();
 
-#if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
-  /*! Get the hardware version. */
+  /*! Get the hardware version. Only implemented with Capistrano SDK 2018 and newer. */
   virtual int GetHardwareVersion();
 
-  /*! Get the high pass filter. */
+  /*! Get the high pass filter. Only implemented with Capistrano SDK 2018 and newer. */
   virtual int GetHighPassFilter();
-#ifdef CAPISTRANO_SDK2018
-  /*! Get the low pass filter. */
+
+  /*! Get the low pass filter. Only implemented with Capistrano SDK 2018. */
   virtual int GetLowPassFilter();
-#endif
-#endif
 
   /* Update Speed of Sound */
   PlusStatus GetProbeVelocityDevice(float& aVel);
@@ -188,25 +185,25 @@ public:
   /*! Checks whether the device is frozen or live. */
   bool IsFrozen();
 
-#ifdef CAPISTRANO_SDK2019_2
   /*! Set MIS Mode on/off.
   * When MIS mode is turned on, the bidirectional mode for imaging is automatically set.
   * One should not return to unidirectional mode while MIS mode is on.
-  * When turning off MIS mode, the system is set back to unidirectional mode, automatically, again.*/
+  * When turning off MIS mode, the system is set back to unidirectional mode, automatically, again.
+  * Only implemented with Capistrano SDK 2019.2 and newer. */
   PlusStatus SetMISMode(bool mode);
 
-  /* Get the MIS Mode state. */
+  /* Get the MIS Mode state. Only implemented with Capistrano SDK 2019.2 and newer. */
   bool GetMISMode();
 
   /*! Set the pulse period used for the MIS mode.
   * The number written into the register will determine the number of 240 MHz clock periods, plus one.
   * That is, if 0 is written, that corresponds to 1, 240 MHz clock (or about 4.2 ns). A value of 50 would be 51 clocks (or 51*4.2ns = 214.2 ns).
-  * The maximum value written can be 126 (corresponding to 127 clocks which is 533.4 ns). */
+  * The maximum value written can be 126 (corresponding to 127 clocks which is 533.4 ns).
+  * Only implemented with Capistrano SDK 2019.2 and newer. */
   PlusStatus SetMISPulsePeriod(unsigned int val);
 
-  /*! Get the pulse period used for the MIS mode. */
+  /*! Get the pulse period used for the MIS mode. Only implemented with Capistrano SDK 2019.2 and newer. */
   unsigned int GetMISPulsePeriod();
-#endif
 
 protected:
   /*! Constructor */
