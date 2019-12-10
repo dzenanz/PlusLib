@@ -44,13 +44,13 @@ public:
   virtual std::string GetSdkVersion();
 
   /*! Get the hardware version. Only implemented with Capistrano SDK 2018 and newer. */
-  virtual int GetHardwareVersion();
+  PlusStatus GetHardwareVersion(int & HardwareVersion);
 
   /*! Get the high pass filter. Only implemented with Capistrano SDK 2018 and newer. */
-  virtual int GetHighPassFilter();
+  PlusStatus GetHighPassFilter(int & HighPassFilter);
 
   /*! Get the low pass filter. Only implemented with Capistrano SDK 2018. */
-  virtual int GetLowPassFilter();
+  PlusStatus GetLowPassFilter(int & LowPassFilter);
 
   /* Update Speed of Sound */
   PlusStatus GetProbeVelocityDevice(float& aVel);
@@ -193,7 +193,7 @@ public:
   PlusStatus SetMISMode(bool mode);
 
   /* Get the MIS Mode state. Only implemented with Capistrano SDK 2019.2 and newer. */
-  bool GetMISMode();
+  PlusStatus GetMISMode(bool & MISMode);
 
   /*! Set the pulse period used for the MIS mode.
   * The number written into the register will determine the number of 240 MHz clock periods, plus one.
@@ -203,7 +203,7 @@ public:
   PlusStatus SetMISPulsePeriod(unsigned int val);
 
   /*! Get the pulse period used for the MIS mode. Only implemented with Capistrano SDK 2019.2 and newer. */
-  unsigned int GetMISPulsePeriod();
+  PlusStatus GetMISPulsePeriod(unsigned int & PulsePeriod);
 
 protected:
   /*! Constructor */
@@ -286,6 +286,10 @@ protected:
   bool                           Frozen;
   bool                           UpdateParameters;
   bool                           MISMode;
+  unsigned int                   PulsePeriod;
+  int                            HardwareVersion;
+  int                            HighPassFilter;
+  int                            LowPassFilter;
   bool                           BidirectionalMode;
   int                            ProbeID;
   int                            ClockDivider;

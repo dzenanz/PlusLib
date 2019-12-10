@@ -710,32 +710,38 @@ std::string vtkPlusCapistranoVideoSource::GetSdkVersion()
 }
 
 // ----------------------------------------------------------------------------
-int vtkPlusCapistranoVideoSource::GetHardwareVersion()
+PlusStatus vtkPlusCapistranoVideoSource::GetHardwareVersion(int & HardwareVersion)
 {
   #if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
-    return usbHardwareVersion();
+    HardwareVersion = usbHardwareVersion();
+    return PLUS_SUCCESS;
   #else
     LOG_ERROR("This method is not supported with this version of Capistrano SDK.");
+    return PLUS_FAIL;
   #endif
 }
 
 // ----------------------------------------------------------------------------
-int vtkPlusCapistranoVideoSource::GetHighPassFilter()
+PlusStatus vtkPlusCapistranoVideoSource::GetHighPassFilter(int & HighPassFilter)
 {
   #if defined(CAPISTRANO_SDK2019_2) || defined(CAPISTRANO_SDK2019) || defined(CAPISTRANO_SDK2018)
-    return usbHighPassFilter();
+    HighPassFilter = usbHighPassFilter();
+    return PLUS_SUCCESS;
   #else
     LOG_ERROR("This method is not supported with this version of Capistrano SDK.");
+    return PLUS_FAIL;
   #endif
 }
 
 // ----------------------------------------------------------------------------
-int vtkPlusCapistranoVideoSource::GetLowPassFilter()
+PlusStatus vtkPlusCapistranoVideoSource::GetLowPassFilter(int & LowPassFilter)
 {
   #ifdef CAPISTRANO_SDK2018
-    return usbLowPassFilter();
+    LowPassFilter = usbLowPassFilter();
+    return PLUS_SUCCESS;
   #else
     LOG_ERROR("This method is not supported with this version of Capistrano SDK.");
+    return PLUS_FAIL;
   #endif
 }
 
@@ -754,6 +760,10 @@ vtkPlusCapistranoVideoSource::vtkPlusCapistranoVideoSource()
 
   // Initialize US probe parameters ----------------------------------------
   this->MISMode                                = false;
+  this->PulsePeriod                            = 0;
+  this->HardwareVersion                        = 0;
+  this->HighPassFilter                         = 0;
+  this->LowPassFilter                          = 0;
   this->BidirectionalMode                      = false;
   this->ProbeID                                = 0;
   this->ClockDivider                           = 2;       //1
@@ -1365,12 +1375,14 @@ PlusStatus vtkPlusCapistranoVideoSource::SetMISMode(bool mode)
   #endif
 }
 // ----------------------------------------------------------------------------
-bool vtkPlusCapistranoVideoSource::GetMISMode()
+PlusStatus vtkPlusCapistranoVideoSource::GetMISMode(bool & MISMode)
 {
   #ifdef CAPISTRANO_SDK2019_2
-    return this->MISMode;
+    MISMode = this->MISMode;
+    return PLUS_SUCCESS;
   #else
     LOG_ERROR("This method is not supported with this version of Capistrano SDK.");
+    return PLUS_FAIL;
   #endif
 }
 
@@ -1386,12 +1398,14 @@ PlusStatus vtkPlusCapistranoVideoSource::SetMISPulsePeriod(unsigned int val)
   #endif
 }
 // ----------------------------------------------------------------------------
-unsigned int vtkPlusCapistranoVideoSource::GetMISPulsePeriod()
+PlusStatus  vtkPlusCapistranoVideoSource::GetMISPulsePeriod(unsigned int & PulsePeriod)
 {
   #ifdef CAPISTRANO_SDK2019_2
-    return usbWriteSpecialFunction(0x6d697302, 0);
+    PulsePeriod = usbWriteSpecialFunction(0x6d697302, 0);
+    return PLUS_SUCCESS;
   #else
     LOG_ERROR("This method is not supported with this version of Capistrano SDK.");
+    return PLUS_FAIL;
   #endif
 }
 
