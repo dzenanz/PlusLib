@@ -1546,7 +1546,14 @@ unsigned char vtkPlusCapistranoVideoSource::GetDerivativeCompensation()
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusCapistranoVideoSource::SetPulseVoltage(float pv)
 {
-  return this->Internal->ImagingParameters->SetProbeVoltage(pv);
+  //if (updateAllParametersWhenVoltageIsChanged)
+  //{
+  //this->Internal->ImagingParameters->SetProbeVoltage(pv);
+  //return this->UpdateUSProbeParameters();
+  //}
+
+  usbSetPulseVoltage(pv);
+  return PLUS_SUCCESS;
 }
 
 float vtkPlusCapistranoVideoSource::GetPulseVoltage()
