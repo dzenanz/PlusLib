@@ -10,6 +10,8 @@ See License.txt for details.
 #include "ATMCD32D.h"
 #include "igtlOSUtil.h" // for Sleep
 #include "opencv2/imgproc.hpp"
+#include "opencv2/imgcodecs.hpp"
+#include <chrono>
 
 #define AndorCheckErrorValueAndFailIfNeeded(returnValue, functionName) \
   if(returnValue != DRV_SUCCESS)                                       \
@@ -384,6 +386,16 @@ void vtkPlusAndorCamera::ApplyFrameCorrections()
 
   cv::undistort(floatImage, result, cameraIntrinsics, distanceCoefficients);
   result.convertTo(cvIMG, CV_16UC1);
+  cv::imwrite("blurA.tif", cvIMG);
+
+  auto start = std::chrono::high_resolution_clock::now();
+  cv::GaussianBlur(cvIMG, cvIMG, cv::Size(25, 25), 15.0, 15.0);
+  auto stop = std::chrono::high_resolution_clock::now();
+
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+  cout << "Time taken by blur: " << duration.count() << " milliseconds" << endl;
+
+  cv::imwrite("blurB.tif", cvIMG);
 }
 
 // ----------------------------------------------------------------------------
