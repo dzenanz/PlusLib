@@ -122,16 +122,17 @@ std::string vtkPlusAndorCamera::GetSdkVersion()
 {
   std::ostringstream versionString;
 
-  unsigned epromVer;
-  unsigned cofVer;
-  unsigned driverRev;
-  unsigned driverVer;
-  unsigned dllRev;
-  unsigned dllVer;
+  char sParam[256];
+  unsigned result = GetVersionInfo(AT_SDKVersion, sParam, sizeof(sParam));
+  if(result != DRV_SUCCESS)
+  {
+    LOG_ERROR("Andor SDK version could not be retrieved.");
+  }
+  else
+  {
+    versionString << "Andor SDK version: "  << sParam << std::endl;
+  }
 
-  unsigned andorResult = GetSoftwareVersion(&epromVer, &cofVer, &driverRev, &driverVer, &dllRev, &dllVer);
-
-  versionString << "Andor SDK version: "  << dllVer << "." << dllRev << std::endl;
   return versionString.str();
 }
 
