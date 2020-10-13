@@ -130,7 +130,7 @@ std::string vtkPlusAndorCamera::GetSdkVersion()
   }
   else
   {
-    versionString << "Andor SDK version: "  << sParam << std::endl;
+    versionString << "Andor SDK version: "  << sParam << std::ends;
   }
 
   return versionString.str();
