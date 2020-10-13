@@ -144,16 +144,6 @@ vtkPlusAndorCamera::vtkPlusAndorCamera()
 
   this->StartThreadForInternalUpdates = true; // should frames be acquired automatically?
   this->AcquisitionRate = 1.0; // this controls the frequency
-
-  unsigned result = Initialize("");
-  if(result != DRV_SUCCESS)
-  {
-    LOG_ERROR("Andor SDK could not be initialized");
-  }
-  else
-  {
-    LOG_DEBUG("Andor SDK initialized.");
-  }
 }
 
 // ----------------------------------------------------------------------------
@@ -168,6 +158,16 @@ vtkPlusAndorCamera::~vtkPlusAndorCamera()
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusAndorCamera::InitializeAndorCamera()
 {
+  unsigned initializeResult = Initialize("");
+  if(initializeResult != DRV_SUCCESS)
+  {
+    LOG_ERROR("Andor SDK could not be initialized");
+  }
+  else
+  {
+    LOG_DEBUG("Andor SDK initialized.");
+  }
+
   // Check the safe temperature, and the maximum allowable temperature on the camera.
   // Use the min of the two as the safe temp.
   int MinTemp, MaxTemp;
