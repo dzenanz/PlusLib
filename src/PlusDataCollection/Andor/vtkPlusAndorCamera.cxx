@@ -13,14 +13,6 @@ See License.txt for details.
 #include "opencv2/imgcodecs.hpp"
 
 
-#define AndorCheckErrorValueAndFailIfNeeded(returnValue, functionName) \
-  if(returnValue != DRV_SUCCESS)                                       \
-  {                                                                    \
-    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
-              << " with error code: " << returnValue);                 \
-    return PLUS_FAIL;                                                  \
-  }
-
 vtkStandardNewMacro(vtkPlusAndorCamera);
 
 // put these here so there is no public dependence on OpenCV
@@ -122,16 +114,9 @@ std::string vtkPlusAndorCamera::GetSdkVersion()
 {
   std::ostringstream versionString;
 
-  char sParam[256];
-  unsigned result = GetVersionInfo(AT_SDKVersion, sParam, sizeof(sParam));
-  if(result != DRV_SUCCESS)
-  {
-    LOG_ERROR("Andor SDK version could not be retrieved.");
-  }
-  else
-  {
-    versionString << "Andor SDK version: "  << sParam << std::ends;
-  }
+  char SDKVersion[256];
+  checkStatus(GetVersionInfo(AT_SDKVersion, SDKVersion, sizeof(SDKVersion)), "GetVersionInfo");
+  versionString << "Andor SDK version: "  << SDKVersion << std::ends;
 
   return versionString.str();
 }
@@ -158,52 +143,44 @@ vtkPlusAndorCamera::~vtkPlusAndorCamera()
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusAndorCamera::InitializeAndorCamera()
 {
-  unsigned initializeResult = Initialize("");
-  if(initializeResult != DRV_SUCCESS)
-  {
-    LOG_ERROR("Andor SDK could not be initialized");
-  }
-  else
-  {
-    LOG_DEBUG("Andor SDK initialized.");
-  }
+  checkStatus(Initialize(""), "Initialize");
 
   // Check the safe temperature, and the maximum allowable temperature on the camera.
   // Use the min of the two as the safe temp.
   int MinTemp, MaxTemp;
-  unsigned result = GetTemperatureRange(&MinTemp, &MaxTemp);
+  unsigned result = checkStatus(GetTemperatureRange(&MinTemp, &MaxTemp), "GetTemperatureRange");
+  if(result == DRV_SUCCESS)
+  {
+    LOG_INFO("The temperature range for the connected Andor Camera is: " << MinTemp << " and " << MaxTemp);
+  }
+
   if(MaxTemp < this->SafeTemperature)
   {
     this->SafeTemperature = MaxTemp;
   }
-  LOG_INFO("The temperature range for the connected Andor Camera is: " << MinTemp << " and " << MaxTemp);
-
   if(this->CoolTemperature < MinTemp || this->CoolTemperature > MaxTemp)
   {
     LOG_ERROR("Requested temperature for Andor camera is out of range");
     return PLUS_FAIL;
   }
 
-  result = CoolerON();
-  AndorCheckErrorValueAndFailIfNeeded(result, "Turn Andor Camera Cooler on")
-
-  result = SetTemperature(this->CoolTemperature);
-  AndorCheckErrorValueAndFailIfNeeded(result, "Set Andor Camera cool temperature")
-
+  result = checkStatus(CoolerON(), "CoolerON");
+  if(result == DRV_SUCCESS)
+  {
+    LOG_INFO("Temperature controller switched ON.");
+  }
+  checkStatus(SetTemperature(this->CoolTemperature), "SetTemperature");
   GetCurrentTemperature(); // logs the status and temperature
 
   int x, y;
-  result = GetDetector(&x, &y);
-  AndorCheckErrorValueAndFailIfNeeded(result, "GetDetectorSize")
+  checkStatus(GetDetector(&x, &y), "GetDetector");
   frameSize[0] = static_cast<unsigned>(x);
   frameSize[1] = static_cast<unsigned>(y);
 
   // binning of 1 (meaning no binning), and full sensor size
-  result = SetImage(1, 1, 1, x, 1, y);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetImage")
+  checkStatus(SetImage(1, 1, 1, x, 1, y), "SetImage");
 
-  result = PrepareAcquisition();
-  AndorCheckErrorValueAndFailIfNeeded(result, "PrepareAcquisition")
+  checkStatus(PrepareAcquisition(), "PrepareAcquisition");
 
   return PLUS_SUCCESS;
 }
@@ -266,8 +243,7 @@ PlusStatus vtkPlusAndorCamera::InternalDisconnect()
   }
 
   int status;
-  unsigned result = IsCoolerOn(&status);
-  AndorCheckErrorValueAndFailIfNeeded(result, "IsCoolerOn")
+  checkStatus(IsCoolerOn(&status), "IsCoolerOn");
 
   if(status)
   {
@@ -275,8 +251,7 @@ PlusStatus vtkPlusAndorCamera::InternalDisconnect()
     if(this->CurrentTemperature < this->SafeTemperature)
     {
       LOG_INFO("Temperature not yet at a safe point, turning the Cooler Off");
-      result = CoolerOFF();
-      AndorCheckErrorValueAndFailIfNeeded(result, "CoolerOff")
+      checkStatus(CoolerOFF(), "CoolerOff");
 
       while(this->CurrentTemperature < this->SafeTemperature)
       {
@@ -286,13 +261,14 @@ PlusStatus vtkPlusAndorCamera::InternalDisconnect()
     }
   }
 
-  result = FreeInternalMemory();
-  AndorCheckErrorValueAndFailIfNeeded(result, "FreeInternalMemory")
+  checkStatus(FreeInternalMemory(), "FreeInternalMemory");
 
-  result = ShutDown();
-  AndorCheckErrorValueAndFailIfNeeded(result, "ShutDown")
+  unsigned result = checkStatus(ShutDown(), "ShutDown");
+  if(result == DRV_SUCCESS)
+  {
+    LOG_INFO("Andor camera shut down successfully.");
+  }
 
-  LOG_INFO("Andor camera shut down successfully");
   return PLUS_SUCCESS;
 }
 
@@ -313,30 +289,16 @@ PlusStatus vtkPlusAndorCamera::InternalStopRecording()
 // ----------------------------------------------------------------------------
 float vtkPlusAndorCamera::GetCurrentTemperature()
 {
-  unsigned result = GetTemperatureF(&this->CurrentTemperature);
-  switch(result)
-  {
-    case DRV_TEMPERATURE_STABILIZED:
-      LOG_INFO("Temperature has stabilized at " << this->CurrentTemperature << " °C");
-      break;
-    case DRV_TEMPERATURE_NOT_REACHED:
-      LOG_INFO("Cooling down, current temperature is " << this->CurrentTemperature << " °C");
-      break;
-    default:
-      LOG_INFO("Current temperature is " << this->CurrentTemperature << " °C");
-      break;
-  }
-
+  checkStatus(GetTemperatureF(&this->CurrentTemperature), "GetTemperatureF");
   return this->CurrentTemperature;
 }
 
 // ----------------------------------------------------------------------------
 void vtkPlusAndorCamera::WaitForCooldown()
 {
-  while(GetTemperatureF(&this->CurrentTemperature) != DRV_TEMPERATURE_STABILIZED)
+  while(checkStatus(GetTemperatureF(&this->CurrentTemperature), "GetTemperatureF") != DRV_TEMPERATURE_STABILIZED)
   {
     igtl::Sleep(5000); // wait a bit
-    GetCurrentTemperature(); // logs the status and temperature
   }
 }
 
@@ -346,22 +308,21 @@ PlusStatus vtkPlusAndorCamera::AcquireFrame(float exposure, int shutterMode)
   unsigned rawFrameSize = frameSize[0] * frameSize[1];
   rawFrame.resize(rawFrameSize, 0);
 
-  unsigned result = ::SetShutter(1, shutterMode, 0, 0);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetShutter")
-  result = ::SetExposureTime(exposure);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetExposureTime")
-  result = StartAcquisition();
-  AndorCheckErrorValueAndFailIfNeeded(result, "StartAcquisition")
-  result = WaitForAcquisition();
+  SetExposureTime(exposure);
+  SetShutter(shutterMode);
+  checkStatus(StartAcquisition(), "StartAcquisition");
+  unsigned result = checkStatus(WaitForAcquisition(), "WaitForAcquisition");
+  if (result == DRV_NO_NEW_DATA)  // Log a more specific log message for WaitForAcquisition
+  {
+    LOG_ERROR("Non-Acquisition Event occurred.(e.g. CancelWait() called)");
+  }
   this->currentTime = vtkIGSIOAccurateTimer::GetSystemTime();
-  AndorCheckErrorValueAndFailIfNeeded(result, "WaitForAcquisition")
 
   // iKon-M 934 has 16-bit digitization
   // https://andor.oxinst.com/assets/uploads/products/andor/documents/andor-ikon-m-934-specifications.pdf
   // so we choose 16-bit unsigned
   // GetMostRecentImage() is 32 bit signed variant
-  result = GetMostRecentImage16(&rawFrame[0], rawFrameSize);
-  AndorCheckErrorValueAndFailIfNeeded(result, "GetMostRecentImage16")
+  checkStatus(GetMostRecentImage16(&rawFrame[0], rawFrameSize), "GetMostRecentImage16");
 
   return PLUS_SUCCESS;
 }
@@ -446,8 +407,7 @@ PlusStatus vtkPlusAndorCamera::AcquireGrayscaleFrame(float exposureTime)
 PlusStatus vtkPlusAndorCamera::SetShutter(int shutter)
 {
   this->Shutter = shutter;
-  unsigned result = ::SetShutter(1, this->Shutter, 0, 0);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetShutter")
+  checkStatus(::SetShutter(1, this->Shutter, 0, 0), "SetShutter");
   return PLUS_SUCCESS;
 }
 
@@ -461,9 +421,7 @@ int vtkPlusAndorCamera::GetShutter()
 PlusStatus vtkPlusAndorCamera::SetExposureTime(float exposureTime)
 {
   this->ExposureTime = exposureTime;
-
-  unsigned result = ::SetExposureTime(this->ExposureTime);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetExposureTime")
+  checkStatus(::SetExposureTime(this->ExposureTime), "SetExposureTime");
   return PLUS_SUCCESS;
 }
 
@@ -477,9 +435,15 @@ float vtkPlusAndorCamera::GetExposureTime()
 PlusStatus vtkPlusAndorCamera::SetPreAmpGain(int preAmpGain)
 {
   this->PreAmpGain = preAmpGain;
-
-  unsigned result = ::SetPreAmpGain(this->PreAmpGain);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetPreAmpGain")
+  unsigned status = checkStatus(::SetPreAmpGain(this->PreAmpGain), "SetPreAmpGain");
+  if (status == DRV_P1INVALID)
+  {
+    LOG_ERROR("Minimum threshold outside valid range (1-65535).");
+  }
+  else if (status == DRV_P2INVALID)
+  {
+    LOG_ERROR("Maximum threshold outside valid range.");
+  }
   return PLUS_SUCCESS;
 }
 
@@ -493,9 +457,7 @@ int vtkPlusAndorCamera::GetPreAmpGain()
 PlusStatus vtkPlusAndorCamera::SetAcquisitionMode(int acquisitionMode)
 {
   this->AcquisitionMode = acquisitionMode;
-
-  unsigned result = ::SetAcquisitionMode(this->AcquisitionMode);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetAcquisitionMode")
+  checkStatus(::SetAcquisitionMode(this->AcquisitionMode), "SetAcquisitionMode");
   return PLUS_SUCCESS;
 }
 
@@ -509,9 +471,7 @@ int vtkPlusAndorCamera::GetAcquisitionMode()
 PlusStatus vtkPlusAndorCamera::SetReadMode(int readMode)
 {
   this->ReadMode = readMode;
-
-  unsigned result = ::SetReadMode(this->ReadMode);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetReadMode")
+  checkStatus(::SetReadMode(this->ReadMode), "SetReadMode");
   return PLUS_SUCCESS;
 }
 
@@ -525,9 +485,7 @@ int vtkPlusAndorCamera::GetReadMode()
 PlusStatus vtkPlusAndorCamera::SetTriggerMode(int triggerMode)
 {
   this->TriggerMode = triggerMode;
-
-  unsigned result = ::SetTriggerMode(this->TriggerMode);
-  AndorCheckErrorValueAndFailIfNeeded(result, "SetTriggerMode")
+  checkStatus(::SetTriggerMode(this->TriggerMode), "SetTriggerMode");
   return PLUS_SUCCESS;
 }
 
@@ -563,4 +521,185 @@ PlusStatus vtkPlusAndorCamera::SetSafeTemperature(int safeTemp)
 int vtkPlusAndorCamera::GetSafeTemperature()
 {
   return this->SafeTemperature;
+}
+
+// ----------------------------------------------------------------------------
+unsigned int vtkPlusAndorCamera::checkStatus(unsigned int returnStatus, std::string functionName)
+{
+  if (returnStatus == DRV_SUCCESS)
+  {
+    return returnStatus;
+  }
+  else if (returnStatus == DRV_NOT_INITIALIZED)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Driver is not initialized.");
+  }
+  else if (returnStatus == DRV_ACQUIRING)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Not allowed. Currently acquiring data.");
+  }
+  else if (returnStatus == DRV_P1INVALID)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Parameter 1 not valid.");
+  }
+  else if (returnStatus == DRV_P2INVALID)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Parameter 2 not valid.");
+  }
+  else if (returnStatus == DRV_P3INVALID)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Parameter 3 not valid.");
+  }
+  else if (returnStatus == DRV_P4INVALID)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Parameter 4 not valid.");
+  }
+  else if (returnStatus == DRV_P5INVALID)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Parameter 5 not valid.");
+  }
+  else if (returnStatus == DRV_P6INVALID)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Parameter 6 not valid.");
+  }
+  else if (returnStatus == DRV_P7INVALID)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Parameter 7 not valid.");
+  }
+  else if (returnStatus == DRV_ERROR_ACK)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Unable to communicate with card.");
+  }
+  else if (returnStatus == DRV_TEMP_OFF)
+  {
+    LOG_INFO("Cooler is OFF. Current temperature is " << this->CurrentTemperature << " °C");
+  }
+  else if (returnStatus == DRV_TEMPERATURE_STABILIZED)
+  {
+    LOG_INFO("Temperature has stabilized at " << this->CurrentTemperature << " °C");
+  }
+  else if (returnStatus == DRV_TEMPERATURE_NOT_REACHED)
+  {
+    LOG_INFO("Cooling down, current temperature is " << this->CurrentTemperature << " °C");
+  }
+  else if (returnStatus == DRV_TEMP_DRIFT)
+  {
+    LOG_INFO("Temperature had stabilised but has since drifted. Current temperature is " << this->CurrentTemperature << " °C");
+  }
+  else if (returnStatus == DRV_TEMP_NOT_STABILIZED)
+  {
+    LOG_INFO("Temperature reached but not stabilized. Current temperature is " << this->CurrentTemperature << " °C");
+  }
+  else if (returnStatus == DRV_VXDNOTINSTALLED)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "VxD not loaded.");
+  }
+  else if (returnStatus == DRV_INIERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Unable to load DETECTOR.INI.");
+  }
+  else if (returnStatus == DRV_COFERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Unable to load *.COF.");
+  }
+  else if (returnStatus == DRV_FLEXERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Unable to load *.RBF.");
+  }
+  else if (returnStatus == DRV_ERROR_FILELOAD)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Unable to load *.COF or *.RBF files.");
+  }
+  else if (returnStatus == DRV_USBERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Unable to detect USB device or not USB 2.0.");
+  }
+  else if (returnStatus == DRV_ERROR_NOCAMERA)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "No camera found.");
+  }
+  else if (returnStatus == DRV_GENERAL_ERRORS)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "An error occured while obtaining the number of available cameras.");
+  }
+  else if (returnStatus == DRV_INVALID_MODE)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Invalid mode or mode not available.");
+  }
+  else if (returnStatus == DRV_ERROR_PAGELOCK)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Unable to allocate memory.");
+  }
+  else if (returnStatus == DRV_INVALID_FILTER)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Filter not available for current acquisition.");
+  }
+  else if (returnStatus == DRV_BINNING_ERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Range not a multiple of horizontal binning.");
+  }
+  else if (returnStatus == DRV_SPOOLSETUPERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Error with spool settings.");
+  }
+  else if (returnStatus == DRV_IDLE)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "The system is not currently acquiring.");
+  }
+  else if (returnStatus == DRV_NO_NEW_DATA)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "There is no new data yet.");
+  }
+  else if (returnStatus == DRV_ERROR_CODES)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Problem communicating with camera.");
+  }
+  else if (returnStatus == DRV_LOAD_FIRMWARE_ERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Error loading firmware.");
+  }
+  else if (returnStatus == DRV_NOT_SUPPORTED)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Feature not supported.");
+  }
+  else if (returnStatus == DRV_RANDOM_TRACK_ERROR)
+  {
+    LOG_ERROR("Failed AndorSDK operation: " << functionName            \
+              << "Invalid combination of tracks.");
+  }
+  else
+  {
+    LOG_WARNING("Possible failed AndorSDK operation: " << functionName            \
+              << "Unknown return code " << returnStatus << "returned.");
+  }
+
+  return returnStatus;
 }
