@@ -14,7 +14,7 @@
  \class vtkPlusAndorCamera
  \brief Class for acquiring images from Andor cameras
 
- Requires PLUS_USE_ANDOR_CAM option in CMake.
+ Requires PLUS_USE_ANDOR_CAMERA option in CMake.
  Requires the Andor SDK (SDK provided by Andor).
 
  \ingroup PlusLibDataCollection.
@@ -116,6 +116,9 @@ public:
 
   /*! Wait for the camera to reach operating temperature (e.g. -70°C). */
   void WaitForCooldown();
+
+  /*! Check the return status of Andor SDK functions. */
+  unsigned int checkStatus(unsigned int returnStatus, std::string functionName);
 
   vtkPlusAndorCamera(const vtkPlusAndorCamera&) = delete;
   void operator=(const vtkPlusAndorCamera&) = delete;
