@@ -365,7 +365,7 @@ void vtkPlusAndorCamera::ApplyFrameCorrections()
 
   // Divide the image by the 32-bit floating point correction image
   floatImage = floatImage / cvFlatCorrection;
-  std::cout << "Applied flat correction" << std::endl;
+  LOG_INFO("Applied flat correction");
 
   // OpenCV's lens distortion correction
   cv::undistort(floatImage, result, cvCameraIntrinsics, cvDistanceCoefficients);
