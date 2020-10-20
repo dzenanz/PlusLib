@@ -127,7 +127,7 @@ vtkPlusAndorCamera::vtkPlusAndorCamera()
 {
   this->RequirePortNameInDeviceSetConfiguration = true;
 
-  this->StartThreadForInternalUpdates = true; // should frames be acquired automatically?
+  this->StartThreadForInternalUpdates = false; // frames should not be acquired automatically
   this->AcquisitionRate = 1.0; // this controls the frequency
 }
 
