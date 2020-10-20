@@ -164,12 +164,14 @@ PlusStatus vtkPlusAndorCamera::InitializeAndorCamera()
     return PLUS_FAIL;
   }
 
+  /*
   result = checkStatus(CoolerON(), "CoolerON");
   if(result == DRV_SUCCESS)
   {
     LOG_INFO("Temperature controller switched ON.");
   }
   checkStatus(SetTemperature(this->CoolTemperature), "SetTemperature");
+  */
   GetCurrentTemperature(); // logs the status and temperature
 
   int x, y;
