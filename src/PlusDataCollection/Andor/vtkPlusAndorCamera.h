@@ -205,7 +205,7 @@ protected:
   DataSourceArray BLIdark;
   DataSourceArray GrayRaw;
   DataSourceArray GrayRectified;
-  DataSourceArray Graydark;
+  DataSourceArray GrayDark;
 };
 
 #endif
