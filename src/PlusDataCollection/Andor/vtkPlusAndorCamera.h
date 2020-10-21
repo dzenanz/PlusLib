@@ -157,7 +157,7 @@ protected:
   void AddFrameToDataSource(DataSourceArray& ds);
 
   /*! Applies bias correction for dark current, flat correction and lens distortion. */
-  void ApplyFrameCorrections();
+  void ApplyFrameCorrections(DataSourceArray& ds);
 
   /*! This will be triggered regularly if this->StartThreadForInternalUpdates is true.
    * Framerate is controlled by this->AcquisitionRate. This is meant for debugging.
@@ -202,8 +202,10 @@ protected:
 
   DataSourceArray BLIraw;
   DataSourceArray BLIrectified;
+  DataSourceArray BLIdark;
   DataSourceArray GrayRaw;
   DataSourceArray GrayRectified;
+  DataSourceArray Graydark;
 };
 
 #endif

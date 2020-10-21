@@ -213,10 +213,12 @@ PlusStatus vtkPlusAndorCamera::InternalConnect()
 
   this->GetVideoSourcesByPortName("BLIraw", BLIraw);
   this->GetVideoSourcesByPortName("BLIrectified", BLIrectified);
+  this->GetVideoSourcesByPortName("BLIdark", BLIdark);
   this->GetVideoSourcesByPortName("GrayRaw", GrayRaw);
   this->GetVideoSourcesByPortName("GrayRectified", GrayRectified);
+  this->GetVideoSourcesByPortName("GrayDark", GrayDark);
 
-  if(BLIraw.size() + BLIrectified.size() + GrayRaw.size() + GrayRectified.size() == 0)
+  if(BLIraw.size() + BLIrectified.size() + BLIdark.size() + GrayRaw.size() + GrayRectified.size() + GrayDark.size() == 0)
   {
     vtkPlusDataSource* aSource = nullptr;
     if(this->GetFirstActiveOutputVideoSource(aSource) != PLUS_SUCCESS || aSource == nullptr)
@@ -229,8 +231,10 @@ PlusStatus vtkPlusAndorCamera::InternalConnect()
 
   this->InitializePort(BLIraw);
   this->InitializePort(BLIrectified);
+  this->InitializePort(BLIdark);
   this->InitializePort(GrayRaw);
   this->InitializePort(GrayRectified);
+  this->InitializePort(GrayDark);
 
   return PLUS_SUCCESS;
 }
@@ -354,7 +358,7 @@ void vtkPlusAndorCamera::AddFrameToDataSource(DataSourceArray& ds)
 
 
 // ----------------------------------------------------------------------------
-void vtkPlusAndorCamera::ApplyFrameCorrections()
+void vtkPlusAndorCamera::ApplyFrameCorrections(DataSourceArray& ds)
 {
   cv::Mat cvIMG(frameSize[0], frameSize[1], CV_16UC1, &rawFrame[0]); // uses rawFrame as buffer
   cv::Mat floatImage;
@@ -362,6 +366,7 @@ void vtkPlusAndorCamera::ApplyFrameCorrections()
   cv::Mat result;
 
   AcquireFrame(0.0, 2); // read dark current image with shutter closed
+  AddFrameToDataSource(ds);  // add the dark current to the given data source
   cv::GaussianBlur(cvIMG, cvIMG, cv::Size(25, 25), 15.0, 15.0); // reduce noise
   cv::subtract(floatImage, cvIMG, floatImage, cv::noArray(), CV_32FC1); // constant bias correction
 
@@ -382,7 +387,7 @@ PlusStatus vtkPlusAndorCamera::AcquireBLIFrame()
   ++this->FrameNumber;
   AddFrameToDataSource(BLIraw);
 
-  ApplyFrameCorrections();
+  ApplyFrameCorrections(BLIdark);
   AddFrameToDataSource(BLIrectified);
 
   return PLUS_SUCCESS;
@@ -396,7 +401,7 @@ PlusStatus vtkPlusAndorCamera::AcquireGrayscaleFrame(float exposureTime)
   ++this->FrameNumber;
   AddFrameToDataSource(GrayRaw);
 
-  ApplyFrameCorrections();
+  ApplyFrameCorrections(GrayDark);
   AddFrameToDataSource(GrayRectified);
 
   return PLUS_SUCCESS;
