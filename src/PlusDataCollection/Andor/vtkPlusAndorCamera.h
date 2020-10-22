@@ -61,6 +61,10 @@ public:
   PlusStatus SetExposureTime(float exposureTime);
   float GetExposureTime();
 
+  /*! Horizontal and vertical shift speed. */
+  PlusStatus SetHSSpeed(int type, int index);
+  PlusStatus SetVSSpeed(int index);
+
   /*! Index of the pre-amp gain, not the actual value. */
   PlusStatus SetPreAmpGain(int preAmptGain);
   int GetPreAmpGain();
@@ -170,7 +174,8 @@ protected:
 
   int Shutter = 0;
   float ExposureTime = 1.0; // seconds
-  std::array<int, 2> HSSpeed = { 0, 1 };
+  int HSSpeed[2] = { 0, 1 };  // type, index
+  int VSSpeed = 0;  // index
   int PreAmpGain = 0;
 
   // TODO: Need to handle differet cases for read/acquisiton modes?

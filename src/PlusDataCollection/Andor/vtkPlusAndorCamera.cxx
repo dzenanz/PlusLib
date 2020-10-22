@@ -28,6 +28,7 @@ void vtkPlusAndorCamera::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Shutter: " << Shutter << std::endl;
   os << indent << "ExposureTime: " << ExposureTime << std::endl;
   os << indent << "HSSpeed: " << HSSpeed[0] << HSSpeed[1] << std::endl;
+  os << indent << "VSSpeed: " << VSSpeed << std::endl;
   os << indent << "PreAmpGain: " << PreAmpGain << std::endl;
   os << indent << "AcquisitionMode: " << AcquisitionMode << std::endl;
   os << indent << "ReadMode: " << ReadMode << std::endl;
@@ -54,7 +55,9 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, TriggerMode, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, CoolTemperature, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, SafeTemperature, deviceConfig);
+  XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, VSSpeed, deviceConfig);
 
+  deviceConfig->GetVectorAttribute("HSSpeed", 2, HSSpeed);
   deviceConfig->GetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
   deviceConfig->GetVectorAttribute("DistanceCoefficients", 4, distanceCoefficients);
   flatCorrection = deviceConfig->GetAttribute("FlatCorrection");
@@ -87,7 +90,9 @@ PlusStatus vtkPlusAndorCamera::WriteConfiguration(vtkXMLDataElement* rootConfigE
   deviceConfig->SetIntAttribute("TriggerMode", this->TriggerMode);
   deviceConfig->SetIntAttribute("CoolTemperature", this->CoolTemperature);
   deviceConfig->SetIntAttribute("SafeTemperature", this->SafeTemperature);
+  deviceConfig->SetIntAttribute("VSSpeed", this->VSSpeed);
 
+  deviceConfig->SetVectorAttribute("HSSpeed", 2, HSSpeed);
   deviceConfig->SetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
   deviceConfig->SetVectorAttribute("DistanceCoefficients", 4, distanceCoefficients);
   deviceConfig->SetAttribute("FlatCorrection", flatCorrection.c_str());
@@ -436,6 +441,31 @@ PlusStatus vtkPlusAndorCamera::SetExposureTime(float exposureTime)
 float vtkPlusAndorCamera::GetExposureTime()
 {
   return this->ExposureTime;
+}
+
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusAndorCamera::SetHSSpeed(int type, int index)
+{
+  unsigned status = checkStatus(::SetHSSpeed(type, index), "SetHSSpeed");
+  if (status != DRV_SUCCESS)
+  {
+    return PLUS_FAIL;
+  }
+  HSSpeed[0] = type;
+  HSSpeed[1] = index;
+  return PLUS_SUCCESS;
+}
+
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusAndorCamera::SetVSSpeed(int index)
+{
+  unsigned status = checkStatus(::SetVSSpeed(index), "SetVSSpeed");
+  if (status != DRV_SUCCESS)
+  {
+    return PLUS_FAIL;
+  }
+  this->VSSpeed = index;
+  return PLUS_SUCCESS;
 }
 
 // ----------------------------------------------------------------------------
