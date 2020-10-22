@@ -314,8 +314,8 @@ PlusStatus vtkPlusAndorCamera::AcquireFrame(float exposure, int shutterMode)
   unsigned rawFrameSize = frameSize[0] * frameSize[1];
   rawFrame.resize(rawFrameSize, 0);
 
-  SetExposureTime(exposure);
-  SetShutter(shutterMode);
+  checkStatus(::SetExposureTime(exposure), "SetExposureTime");
+  checkStatus(::SetShutter(1, shutterMode, 0, 0), "SetShutter");
   checkStatus(StartAcquisition(), "StartAcquisition");
   unsigned result = checkStatus(WaitForAcquisition(), "WaitForAcquisition");
   if (result == DRV_NO_NEW_DATA)  // Log a more specific log message for WaitForAcquisition
