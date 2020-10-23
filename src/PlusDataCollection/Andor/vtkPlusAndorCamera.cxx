@@ -591,8 +591,6 @@ PlusStatus vtkPlusAndorCamera::SetUseCooling(bool useCooling)
       LOG_INFO("Temperature controller switched ON.");
     }
     checkStatus(SetTemperature(this->CoolTemperature), "SetTemperature");
-
-    WaitForCooldown();
   }
   else if (useCooling == false && coolerStatus == 1)
   {
