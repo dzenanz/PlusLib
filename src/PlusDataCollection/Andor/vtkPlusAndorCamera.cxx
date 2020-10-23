@@ -27,6 +27,7 @@ void vtkPlusAndorCamera::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Shutter: " << Shutter << std::endl;
   os << indent << "ExposureTime: " << ExposureTime << std::endl;
+  os << indent << "Binning: " << HorizontalBins << " " << VerticalBins << std::endl;
   os << indent << "HSSpeed: " << HSSpeed[0] << HSSpeed[1] << std::endl;
   os << indent << "VSSpeed: " << VSSpeed << std::endl;
   os << indent << "PreAmpGain: " << PreAmpGain << std::endl;
@@ -56,6 +57,8 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, CoolTemperature, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, SafeTemperature, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, VSSpeed, deviceConfig);
+  XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, HorizontalBins, deviceConfig);
+  XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, VerticalBins, deviceConfig);
 
   deviceConfig->GetVectorAttribute("HSSpeed", 2, HSSpeed);
   deviceConfig->GetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
@@ -91,6 +94,8 @@ PlusStatus vtkPlusAndorCamera::WriteConfiguration(vtkXMLDataElement* rootConfigE
   deviceConfig->SetIntAttribute("CoolTemperature", this->CoolTemperature);
   deviceConfig->SetIntAttribute("SafeTemperature", this->SafeTemperature);
   deviceConfig->SetIntAttribute("VSSpeed", this->VSSpeed);
+  deviceConfig->SetIntAttribute("HorizontalBins", this->HorizontalBins);
+  deviceConfig->SetIntAttribute("VerticalBins", this->VerticalBins);
 
   deviceConfig->SetVectorAttribute("HSSpeed", 2, HSSpeed);
   deviceConfig->SetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
@@ -184,8 +189,8 @@ PlusStatus vtkPlusAndorCamera::InitializeAndorCamera()
   frameSize[0] = static_cast<unsigned>(x);
   frameSize[1] = static_cast<unsigned>(y);
 
-  // binning of 1 (meaning no binning), and full sensor size
-  checkStatus(SetImage(1, 1, 1, x, 1, y), "SetImage");
+  // init to binning of 1 (meaning no binning), and full sensor size
+  checkStatus(SetImage(this->HorizontalBins, this->VerticalBins, 1, x, 1, y), "SetImage");
 
   checkStatus(PrepareAcquisition(), "PrepareAcquisition");
 
@@ -441,6 +446,32 @@ PlusStatus vtkPlusAndorCamera::SetExposureTime(float exposureTime)
 float vtkPlusAndorCamera::GetExposureTime()
 {
   return this->ExposureTime;
+}
+
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusAndorCamera::SetHorizontalBins(int bins)
+{
+  int x, y;
+  checkStatus(GetDetector(&x, &y), "GetDetector");  // full sensor size
+  unsigned status = checkStatus(::SetImage(bins, this->VerticalBins, 1, x, 1, y), "SetImage");
+  if (status != DRV_SUCCESS) {
+    return PLUS_FAIL;
+  }
+  this->HorizontalBins = bins;
+  return PLUS_SUCCESS;
+}
+
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusAndorCamera::SetVerticalBins(int bins)
+{
+  int x, y;
+  checkStatus(GetDetector(&x, &y), "GetDetector");  // full sensor size
+  unsigned status = checkStatus(::SetImage(this->HorizontalBins, bins, 1, x, 1, y), "SetImage");
+  if (status != DRV_SUCCESS) {
+    return PLUS_FAIL;
+  }
+  this->VerticalBins = bins;
+  return PLUS_SUCCESS;
 }
 
 // ----------------------------------------------------------------------------

@@ -61,6 +61,10 @@ public:
   PlusStatus SetExposureTime(float exposureTime);
   float GetExposureTime();
 
+  /*! Horizontal and vertical binning. */
+  PlusStatus SetHorizontalBins(int bins);
+  PlusStatus SetVerticalBins(int bins);
+
   /*! Horizontal and vertical shift speed. */
   PlusStatus SetHSSpeed(int type, int index);
   PlusStatus SetVSSpeed(int index);
@@ -174,6 +178,8 @@ protected:
 
   int Shutter = 0;
   float ExposureTime = 1.0; // seconds
+  int HorizontalBins = 1;
+  int VerticalBins = 1;
   int HSSpeed[2] = { 0, 1 };  // type, index
   int VSSpeed = 0;  // index
   int PreAmpGain = 0;
