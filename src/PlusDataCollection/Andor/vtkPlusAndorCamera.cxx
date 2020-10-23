@@ -390,7 +390,6 @@ void vtkPlusAndorCamera::ApplyFrameCorrections(DataSourceArray& ds)
 
   AcquireFrame(0.0, 2); // read dark current image with shutter closed
   AddFrameToDataSource(ds);  // add the dark current to the given data source
-  cv::GaussianBlur(cvIMG, cvIMG, cv::Size(25, 25), 15.0, 15.0); // reduce noise
   cv::subtract(floatImage, cvIMG, floatImage, cv::noArray(), CV_32FC1); // constant bias correction
 
   // Divide the image by the 32-bit floating point correction image
