@@ -393,7 +393,7 @@ void vtkPlusAndorCamera::ApplyFrameCorrections(DataSourceArray& ds)
   cv::subtract(floatImage, cvIMG, floatImage, cv::noArray(), CV_32FC1); // constant bias correction
 
   // Divide the image by the 32-bit floating point correction image
-  floatImage = floatImage / cvFlatCorrection;
+  cv::divide(floatImage, cvFlatCorrection, floatImage, 1, CV_32FC1);
   LOG_INFO("Applied flat correction");
 
   // OpenCV's lens distortion correction
