@@ -34,6 +34,7 @@ void vtkPlusAndorCamera::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "AcquisitionMode: " << AcquisitionMode << std::endl;
   os << indent << "ReadMode: " << ReadMode << std::endl;
   os << indent << "TriggerMode: " << TriggerMode << std::endl;
+  os << indent << "UseCooling: " << UseCooling << std::endl;
   os << indent << "CoolTemperature: " << CoolTemperature << std::endl;
   os << indent << "SafeTemperature: " << SafeTemperature << std::endl;
   os << indent << "CurrentTemperature: " << CurrentTemperature << std::endl;
@@ -48,6 +49,9 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
   LOG_TRACE("vtkPlusAndorCamera::ReadConfiguration");
   XML_FIND_DEVICE_ELEMENT_REQUIRED_FOR_READING(deviceConfig, rootConfigElement);
 
+  // Must initialize the system before setting parameters
+  checkStatus(Initialize(""), "Initialize");
+
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, Shutter, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(float, ExposureTime, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, PreAmpGain, deviceConfig);
@@ -59,6 +63,8 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, VSSpeed, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, HorizontalBins, deviceConfig);
   XML_READ_SCALAR_ATTRIBUTE_OPTIONAL(int, VerticalBins, deviceConfig);
+
+  XML_READ_BOOL_ATTRIBUTE_OPTIONAL(UseCooling, deviceConfig);
 
   deviceConfig->GetVectorAttribute("HSSpeed", 2, HSSpeed);
   deviceConfig->GetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
@@ -101,6 +107,8 @@ PlusStatus vtkPlusAndorCamera::WriteConfiguration(vtkXMLDataElement* rootConfigE
   deviceConfig->SetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
   deviceConfig->SetVectorAttribute("DistanceCoefficients", 4, distanceCoefficients);
   deviceConfig->SetAttribute("FlatCorrection", flatCorrection.c_str());
+
+  XML_WRITE_BOOL_ATTRIBUTE(UseCooling, deviceConfig);
 
   return PLUS_SUCCESS;
 }
@@ -174,14 +182,15 @@ PlusStatus vtkPlusAndorCamera::InitializeAndorCamera()
     return PLUS_FAIL;
   }
 
-  /*
-  result = checkStatus(CoolerON(), "CoolerON");
-  if(result == DRV_SUCCESS)
+  if (this->UseCooling)
   {
-    LOG_INFO("Temperature controller switched ON.");
+    result = checkStatus(CoolerON(), "CoolerON");
+    if(result == DRV_SUCCESS)
+    {
+      LOG_INFO("Temperature controller switched ON.");
+    }
+    checkStatus(SetTemperature(this->CoolTemperature), "SetTemperature");
   }
-  checkStatus(SetTemperature(this->CoolTemperature), "SetTemperature");
-  */
   GetCurrentTemperature(); // logs the status and temperature
 
   int x, y;
@@ -312,6 +321,10 @@ float vtkPlusAndorCamera::GetCurrentTemperature()
 // ----------------------------------------------------------------------------
 void vtkPlusAndorCamera::WaitForCooldown()
 {
+  if (this->UseCooling == false)
+  {
+    return;
+  }
   while(checkStatus(GetTemperatureF(&this->CurrentTemperature), "GetTemperatureF") != DRV_TEMPERATURE_STABILIZED)
   {
     igtl::Sleep(5000); // wait a bit
@@ -392,7 +405,7 @@ void vtkPlusAndorCamera::ApplyFrameCorrections(DataSourceArray& ds)
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusAndorCamera::AcquireBLIFrame()
 {
-  //WaitForCooldown();
+  WaitForCooldown();
   AcquireFrame(this->ExposureTime, 0);
   ++this->FrameNumber;
   AddFrameToDataSource(BLIraw);
@@ -406,7 +419,7 @@ PlusStatus vtkPlusAndorCamera::AcquireBLIFrame()
 // ----------------------------------------------------------------------------
 PlusStatus vtkPlusAndorCamera::AcquireGrayscaleFrame(float exposureTime)
 {
-  //WaitForCooldown();
+  WaitForCooldown();
   AcquireFrame(exposureTime, 0);
   ++this->FrameNumber;
   AddFrameToDataSource(GrayRaw);
@@ -561,6 +574,49 @@ PlusStatus vtkPlusAndorCamera::SetTriggerMode(int triggerMode)
 int vtkPlusAndorCamera::GetTriggerMode()
 {
   return this->TriggerMode;
+}
+
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusAndorCamera::SetUseCooling(bool useCooling)
+{
+  int coolerStatus = 1;
+  unsigned result = checkStatus(::IsCoolerOn(&coolerStatus), "IsCoolerOn");
+  this->UseCooling = useCooling;
+  if (useCooling && coolerStatus == 0)
+  {
+    // Turn the cooler on if we are using cooling
+    result = checkStatus(CoolerON(), "CoolerON");
+    if(result == DRV_SUCCESS)
+    {
+      LOG_INFO("Temperature controller switched ON.");
+    }
+    checkStatus(SetTemperature(this->CoolTemperature), "SetTemperature");
+
+    WaitForCooldown();
+  }
+  else if (useCooling == false && coolerStatus == 1)
+  {
+    // Make sure that if the cooler is on, we wait for warmup
+    result = checkStatus(CoolerOFF(), "CoolerOFF");
+    if(result == DRV_SUCCESS)
+    {
+      LOG_INFO("Temperature controller switched OFF.");
+    }
+
+    while(this->CurrentTemperature < this->SafeTemperature)
+    {
+      igtl::Sleep(5000); // wait a bit
+      GetCurrentTemperature(); // logs the status and temperature
+    }
+  }
+
+  return PLUS_SUCCESS;
+}
+
+// ----------------------------------------------------------------------------
+bool vtkPlusAndorCamera::GetUseCooling()
+{
+  return this->UseCooling;
 }
 
 // ----------------------------------------------------------------------------

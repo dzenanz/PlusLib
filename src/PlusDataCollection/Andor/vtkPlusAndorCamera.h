@@ -176,6 +176,12 @@ protected:
     return PLUS_SUCCESS;
   }
 
+  /*! Dev flag whether to use the cooler during acquisition.
+      It is better for the camera to undergo fewer temperature changes, so use sparingly.
+   */
+  PlusStatus SetUseCooling(bool useCooling);
+  bool GetUseCooling();
+
   int Shutter = 0;
   float ExposureTime = 1.0; // seconds
   int HorizontalBins = 1;
@@ -196,6 +202,7 @@ protected:
   int TriggerMode = 0;
 
   /*! Temperatures are in °C (degrees Celsius) */
+  bool UseCooling = true;  // dev param to bypass cooling procedures
   int CoolTemperature = -50;
   int SafeTemperature = 5;
   float CurrentTemperature = 0.123456789; // easy to spot as uninitialized
