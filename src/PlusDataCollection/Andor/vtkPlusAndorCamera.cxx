@@ -75,7 +75,15 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
   cvDistanceCoefficients = cv::Mat(1, 4, CV_64FC1, distanceCoefficients);
   try
   {
-    cvFlatCorrection = cv::imread(flatCorrection, -1);
+    cvFlatCorrection = cv::imread(flatCorrection, cv::IMREAD_GRAYSCALE);
+    double maxVal = 0.0;
+    cv::minMaxLoc(cvFlatCorrection, nullptr, &maxVal);
+    if(maxVal > 1.0)  // we need to normalize the image to [0.0, 1.0] range
+    {
+      cv::Mat temp;
+      cvFlatCorrection.convertTo(temp, CV_32FC1, 1.0 / maxVal);
+      cvFlatCorrection = temp;
+    }
   }
   catch(...)
   {
