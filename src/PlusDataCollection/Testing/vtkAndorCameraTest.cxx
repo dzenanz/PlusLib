@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
 
 
   vtkSmartPointer< vtkPlusAndorCamera > andorCamDevice = vtkSmartPointer< vtkPlusAndorCamera >::New();
-  andorCamDevice->SetDeviceId("VideoDevice");
+  andorCamDevice->SetDeviceId("BLICamera");
 
 
   // Read config file
@@ -144,20 +144,23 @@ int main(int argc, char* argv[])
   if(renderingOff)
   {
     vtkPlusChannel* raw(nullptr);
-    if(andorCamDevice->GetOutputChannelByName(raw, "VideoStream") != PLUS_SUCCESS)
+    if(andorCamDevice->GetOutputChannelByName(raw, "BLIRawStream") != PLUS_SUCCESS)
     {
-      LOG_ERROR("Unable to locate the channel with Id=\"VideoStream\". Check config file.");
+      LOG_ERROR("Unable to locate the channel with Id=\"BLIRawStream\". Check config file.");
       return EXIT_FAILURE;
     }
 
     vtkPlusChannel* rectified(nullptr);
-    if(andorCamDevice->GetOutputChannelByName(rectified, "AdditionalStream") != PLUS_SUCCESS)
+    if(andorCamDevice->GetOutputChannelByName(rectified, "BLIRectStream") != PLUS_SUCCESS)
     {
-      LOG_WARNING("Unable to locate the channel with Id=\"AdditionalStream\". Additional mode will not be used.");
+      LOG_WARNING("Unable to locate the channel with Id=\"BLIRectStream\". Additional mode will not be used.");
     }
 
     LOG_DEBUG("Rendering disabled. Wait for just a few seconds to acquire data before exiting");
-    igtl::Sleep(3000);
+    andorCamDevice->AcquireBLIFrame();
+    andorCamDevice->AcquireGrayscaleFrame(0.1);
+    andorCamDevice->AcquireBLIFrame();
+    andorCamDevice->AcquireGrayscaleFrame(0.1);
 
     vtkPlusDataSource* bSource(nullptr);
     raw->GetVideoSource(bSource);
