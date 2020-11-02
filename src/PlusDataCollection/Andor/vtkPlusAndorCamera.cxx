@@ -340,13 +340,16 @@ void vtkPlusAndorCamera::WaitForCooldown()
 }
 
 // ----------------------------------------------------------------------------
-PlusStatus vtkPlusAndorCamera::AcquireFrame(float exposure, int shutterMode)
+PlusStatus vtkPlusAndorCamera::AcquireFrame(float exposure, int shutterMode, int binning, int vsSpeed, int hsSpeed)
 {
   unsigned rawFrameSize = frameSize[0] * frameSize[1];
   rawFrame.resize(rawFrameSize, 0);
 
   checkStatus(::SetExposureTime(exposure), "SetExposureTime");
   checkStatus(::SetShutter(1, shutterMode, 0, 0), "SetShutter");
+  checkStatus(::SetImage(binning, binning, 1, 1024, 1, 1024), "Binning");
+  checkStatus(::SetVSSpeed(vsSpeed), "SetHSSpeed");
+  checkStatus(::SetHSSpeed(0, hsSpeed), "SetHSSpeed"); // what is the usual value for type? I put 0.
   checkStatus(StartAcquisition(), "StartAcquisition");
   unsigned result = checkStatus(WaitForAcquisition(), "WaitForAcquisition");
   if(result == DRV_NO_NEW_DATA)   // Log a more specific log message for WaitForAcquisition

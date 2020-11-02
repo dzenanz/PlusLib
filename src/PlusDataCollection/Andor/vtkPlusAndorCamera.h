@@ -61,7 +61,7 @@ public:
   PlusStatus SetExposureTime(float exposureTime);
   float GetExposureTime();
 
-  /*! Horizontal and vertical binning. */
+  /*! Horizontal and vertical binning. Allowed values: 1, 2, 4, 8. */
   PlusStatus SetHorizontalBins(int bins);
   PlusStatus SetVerticalBins(int bins);
 
@@ -159,7 +159,7 @@ protected:
   void InitializePort(DataSourceArray& port);
 
   /*! Acquire a single frame using current parameters. Data is put in the frameBuffer ivar. */
-  PlusStatus AcquireFrame(float exposure, int shutterMode);
+  PlusStatus AcquireFrame(float exposure, int shutterMode, int binning, int vsSpeed, int hsSpeed);
 
   /*! Data from the frameBuffer ivar is added to the provided data source. */
   void AddFrameToDataSource(DataSourceArray& ds);
