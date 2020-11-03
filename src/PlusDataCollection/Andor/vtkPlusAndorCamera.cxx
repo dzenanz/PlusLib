@@ -362,10 +362,10 @@ PlusStatus vtkPlusAndorCamera::AcquireFrame(float exposure, int shutterMode, int
   checkStatus(::SetImage(hbin, vbin, 1, 1024, 1, 1024), "Binning");
 
   int vsInd = vsSpeed >= 0 ? vsSpeed : this->VSSpeed;
-  checkStatus(::SetVSSpeed(vsSpeed), "SetVSSpeed");
+  checkStatus(::SetVSSpeed(vsInd), "SetVSSpeed");
 
   int hsInd = hsSpeed >= 0 ? hsSpeed : this->HSSpeed[1];
-  checkStatus(::SetHSSpeed(this->HSSpeed[0], hsSpeed), "SetHSSpeed");
+  checkStatus(::SetHSSpeed(this->HSSpeed[0], hsInd), "SetHSSpeed");
   
   checkStatus(StartAcquisition(), "StartAcquisition");
   unsigned result = checkStatus(WaitForAcquisition(), "WaitForAcquisition");
