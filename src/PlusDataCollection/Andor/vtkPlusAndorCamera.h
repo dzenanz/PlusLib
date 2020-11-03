@@ -116,11 +116,11 @@ public:
   /*! Get the current temperature of the camera in degrees celsius. */
   float GetCurrentTemperature();
 
-  /*! Uses currently active settings. */
-  PlusStatus AcquireBLIFrame();
+  /*! -1 uses currently active settings. */
+  PlusStatus AcquireBLIFrame(int binning, int vsSpeed, int hsSpeed);
 
-  /*! exposureTime parameter overrides current class' exposure time setting. */
-  PlusStatus AcquireGrayscaleFrame(float exposureTime);
+  /*! -1 uses currently active settings. */
+  PlusStatus AcquireGrayscaleFrame(int binning, int vsSpeed, int hsSpeed, float exposureTime);
 
   /*! Wait for the camera to reach operating temperature (e.g. -70°C). */
   void WaitForCooldown();
@@ -165,7 +165,7 @@ protected:
   void AddFrameToDataSource(DataSourceArray& ds);
 
   /*! Applies bias correction for dark current, flat correction and lens distortion. */
-  void ApplyFrameCorrections(DataSourceArray& ds);
+  void ApplyFrameCorrections();
 
   /*! This will be triggered regularly if this->StartThreadForInternalUpdates is true.
    * Framerate is controlled by this->AcquisitionRate. This is meant for debugging.
@@ -216,7 +216,9 @@ protected:
   // {0}{0}{1}
   double cameraIntrinsics[9] = { 0 };
   double distanceCoefficients[4] = { 0 }; // k_1, k_2, p_1, p_2
-  std::string flatCorrection; // filepath to [0.0,1.0] normalized master flat image
+  std::string flatCorrection; // filepath to master flat image
+  std::string biasCorrection; // filepath to master bias image
+  // TODO: add setters for these
 
   DataSourceArray BLIraw;
   DataSourceArray BLIrectified;

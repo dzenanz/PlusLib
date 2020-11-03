@@ -19,6 +19,7 @@ vtkStandardNewMacro(vtkPlusAndorCamera);
 cv::Mat cvCameraIntrinsics;
 cv::Mat cvDistanceCoefficients;
 cv::Mat cvFlatCorrection;
+cv::Mat cvBiasCorrection;
 
 // ----------------------------------------------------------------------------
 void vtkPlusAndorCamera::PrintSelf(ostream& os, vtkIndent indent)
@@ -41,6 +42,7 @@ void vtkPlusAndorCamera::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CameraIntrinsics: " << cvCameraIntrinsics << std::endl;
   os << indent << "DistanceCoefficients: " << cvDistanceCoefficients << std::endl;
   os << indent << "FlatCorrection: " << flatCorrection << std::endl;
+  os << indent << "BiasCorrection: " << biasCorrection << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -70,6 +72,7 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
   deviceConfig->GetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
   deviceConfig->GetVectorAttribute("DistanceCoefficients", 4, distanceCoefficients);
   flatCorrection = deviceConfig->GetAttribute("FlatCorrection");
+  biasCorrection = deviceConfig->GetAttribute("BiasCorrection");
 
   cvCameraIntrinsics = cv::Mat(3, 3, CV_64FC1, cameraIntrinsics);
   cvDistanceCoefficients = cv::Mat(1, 4, CV_64FC1, distanceCoefficients);
@@ -88,6 +91,15 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
   catch(...)
   {
     LOG_ERROR("Could not load flat correction image from file: " << flatCorrection);
+    return PLUS_FAIL;
+  }
+  try
+  {
+    cvBiasCorrection = cv::imread(biasCorrection, cv::IMREAD_GRAYSCALE);
+  }
+  catch(...)
+  {
+    LOG_ERROR("Could not load flat correction image from file: " << biasCorrection);
     return PLUS_FAIL;
   }
 
@@ -115,6 +127,7 @@ PlusStatus vtkPlusAndorCamera::WriteConfiguration(vtkXMLDataElement* rootConfigE
   deviceConfig->SetVectorAttribute("CameraIntrinsics", 9, cameraIntrinsics);
   deviceConfig->SetVectorAttribute("DistanceCoefficients", 4, distanceCoefficients);
   deviceConfig->SetAttribute("FlatCorrection", flatCorrection.c_str());
+  deviceConfig->SetAttribute("BiasCorrection", biasCorrection.c_str());
 
   XML_WRITE_BOOL_ATTRIBUTE(UseCooling, deviceConfig);
 
@@ -240,10 +253,8 @@ PlusStatus vtkPlusAndorCamera::InternalConnect()
 
   this->GetVideoSourcesByPortName("BLIraw", BLIraw);
   this->GetVideoSourcesByPortName("BLIrectified", BLIrectified);
-  this->GetVideoSourcesByPortName("BLIdark", BLIdark);
   this->GetVideoSourcesByPortName("GrayRaw", GrayRaw);
   this->GetVideoSourcesByPortName("GrayRectified", GrayRectified);
-  this->GetVideoSourcesByPortName("GrayDark", GrayDark);
 
   if(BLIraw.size() + BLIrectified.size() + BLIdark.size() + GrayRaw.size() + GrayRectified.size() + GrayDark.size() == 0)
   {
@@ -258,10 +269,8 @@ PlusStatus vtkPlusAndorCamera::InternalConnect()
 
   this->InitializePort(BLIraw);
   this->InitializePort(BLIrectified);
-  this->InitializePort(BLIdark);
   this->InitializePort(GrayRaw);
   this->InitializePort(GrayRectified);
-  this->InitializePort(GrayDark);
 
   return PLUS_SUCCESS;
 }
@@ -347,9 +356,17 @@ PlusStatus vtkPlusAndorCamera::AcquireFrame(float exposure, int shutterMode, int
 
   checkStatus(::SetExposureTime(exposure), "SetExposureTime");
   checkStatus(::SetShutter(1, shutterMode, 0, 0), "SetShutter");
-  checkStatus(::SetImage(binning, binning, 1, 1024, 1, 1024), "Binning");
-  checkStatus(::SetVSSpeed(vsSpeed), "SetHSSpeed");
-  checkStatus(::SetHSSpeed(0, hsSpeed), "SetHSSpeed"); // what is the usual value for type? I put 0.
+
+  int hbin = binning > 0 ? binning : this->HorizontalBins;
+  int vbin = binning > 0 ? binning : this->VerticalBins;
+  checkStatus(::SetImage(hbin, vbin, 1, 1024, 1, 1024), "Binning");
+
+  int vsInd = vsSpeed >= 0 ? vsSpeed : this->VSSpeed;
+  checkStatus(::SetVSSpeed(vsSpeed), "SetVSSpeed");
+
+  int hsInd = hsSpeed >= 0 ? hsSpeed : this->HSSpeed[1];
+  checkStatus(::SetHSSpeed(this->HSSpeed[0], hsSpeed), "SetHSSpeed");
+  
   checkStatus(StartAcquisition(), "StartAcquisition");
   unsigned result = checkStatus(WaitForAcquisition(), "WaitForAcquisition");
   if(result == DRV_NO_NEW_DATA)   // Log a more specific log message for WaitForAcquisition
@@ -392,49 +409,49 @@ void vtkPlusAndorCamera::AddFrameToDataSource(DataSourceArray& ds)
 
 
 // ----------------------------------------------------------------------------
-void vtkPlusAndorCamera::ApplyFrameCorrections(DataSourceArray& ds)
+void vtkPlusAndorCamera::ApplyFrameCorrections()
 {
   cv::Mat cvIMG(frameSize[0], frameSize[1], CV_16UC1, &rawFrame[0]); // uses rawFrame as buffer
   cv::Mat floatImage;
   cvIMG.convertTo(floatImage, CV_32FC1);
   cv::Mat result;
 
-  AcquireFrame(0.0, 2); // read dark current image with shutter closed
-  AddFrameToDataSource(ds);  // add the dark current to the given data source
-  cv::subtract(floatImage, cvIMG, floatImage, cv::noArray(), CV_32FC1); // constant bias correction
+  cv::subtract(floatImage, cvBiasCorrection, floatImage, cv::noArray(), CV_32FC1);
+  LOG_INFO("Applied constant bias correction");
 
   // Divide the image by the 32-bit floating point correction image
   cv::divide(floatImage, cvFlatCorrection, floatImage, 1, CV_32FC1);
-  LOG_INFO("Applied flat correction");
+  LOG_INFO("Applied multiplicative flat correction");
 
   // OpenCV's lens distortion correction
   cv::undistort(floatImage, result, cvCameraIntrinsics, cvDistanceCoefficients);
+  LOG_INFO("Applied lens distortion correction");
   result.convertTo(cvIMG, CV_16UC1);
 }
 
 // ----------------------------------------------------------------------------
-PlusStatus vtkPlusAndorCamera::AcquireBLIFrame()
+PlusStatus vtkPlusAndorCamera::AcquireBLIFrame(int binning, int vsSpeed, int hsSpeed)
 {
   WaitForCooldown();
-  AcquireFrame(this->ExposureTime, 0);
+  AcquireFrame(this->ExposureTime, 0, binning, vsSpeed, hsSpeed);
   ++this->FrameNumber;
   AddFrameToDataSource(BLIraw);
 
-  ApplyFrameCorrections(BLIdark);
+  ApplyFrameCorrections();
   AddFrameToDataSource(BLIrectified);
 
   return PLUS_SUCCESS;
 }
 
 // ----------------------------------------------------------------------------
-PlusStatus vtkPlusAndorCamera::AcquireGrayscaleFrame(float exposureTime)
+PlusStatus vtkPlusAndorCamera::AcquireGrayscaleFrame(int binning, int vsSpeed, int hsSpeed, float exposureTime)
 {
   WaitForCooldown();
-  AcquireFrame(exposureTime, 0);
+  AcquireFrame(exposureTime, 0, binning, vsSpeed, hsSpeed);
   ++this->FrameNumber;
   AddFrameToDataSource(GrayRaw);
 
-  ApplyFrameCorrections(GrayDark);
+  ApplyFrameCorrections();
   AddFrameToDataSource(GrayRectified);
 
   return PLUS_SUCCESS;
