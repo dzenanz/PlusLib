@@ -76,32 +76,8 @@ PlusStatus vtkPlusAndorCamera::ReadConfiguration(vtkXMLDataElement* rootConfigEl
 
   cvCameraIntrinsics = cv::Mat(3, 3, CV_64FC1, cameraIntrinsics);
   cvDistanceCoefficients = cv::Mat(1, 4, CV_64FC1, distanceCoefficients);
-  try
-  {
-    cvFlatCorrection = cv::imread(flatCorrection, cv::IMREAD_GRAYSCALE);
-    double maxVal = 0.0;
-    cv::minMaxLoc(cvFlatCorrection, nullptr, &maxVal);
-    if(maxVal > 1.0)  // we need to normalize the image to [0.0, 1.0] range
-    {
-      cv::Mat temp;
-      cvFlatCorrection.convertTo(temp, CV_32FC1, 1.0 / maxVal);
-      cvFlatCorrection = temp;
-    }
-  }
-  catch(...)
-  {
-    LOG_ERROR("Could not load flat correction image from file: " << flatCorrection);
-    return PLUS_FAIL;
-  }
-  try
-  {
-    cvBiasCorrection = cv::imread(biasCorrection, cv::IMREAD_GRAYSCALE);
-  }
-  catch(...)
-  {
-    LOG_ERROR("Could not load flat correction image from file: " << biasCorrection);
-    return PLUS_FAIL;
-  }
+  this->SetFlatCorrectionImage(flatCorrection); // load and normalize if needed
+  this->SetBiasCorrectionImage(biasCorrection); // load the image
 
   return PLUS_SUCCESS;
 }
@@ -366,7 +342,7 @@ PlusStatus vtkPlusAndorCamera::AcquireFrame(float exposure, int shutterMode, int
 
   int hsInd = hsSpeed >= 0 ? hsSpeed : this->HSSpeed[1];
   checkStatus(::SetHSSpeed(this->HSSpeed[0], hsInd), "SetHSSpeed");
-  
+
   checkStatus(StartAcquisition(), "StartAcquisition");
   unsigned result = checkStatus(WaitForAcquisition(), "WaitForAcquisition");
   if(result == DRV_NO_NEW_DATA)   // Log a more specific log message for WaitForAcquisition
@@ -457,6 +433,41 @@ PlusStatus vtkPlusAndorCamera::AcquireGrayscaleFrame(int binning, int vsSpeed, i
   return PLUS_SUCCESS;
 }
 
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusAndorCamera::SetBiasCorrectionImage(std::string biasFilePath)
+{
+  try
+  {
+    cvBiasCorrection = cv::imread(biasFilePath, cv::IMREAD_GRAYSCALE);
+  }
+  catch(...)
+  {
+    LOG_ERROR("Could not load bias correction image from file: " << biasFilePath);
+    return PLUS_FAIL;
+  }
+}
+
+// ----------------------------------------------------------------------------
+PlusStatus vtkPlusAndorCamera::SetFlatCorrectionImage(std::string flatFilePath)
+{
+  try
+  {
+    cvFlatCorrection = cv::imread(flatFilePath, cv::IMREAD_GRAYSCALE);
+    double maxVal = 0.0;
+    cv::minMaxLoc(cvFlatCorrection, nullptr, &maxVal);
+    if(maxVal > 1.0)   // we need to normalize the image to [0.0, 1.0] range
+    {
+      cv::Mat temp;
+      cvFlatCorrection.convertTo(temp, CV_32FC1, 1.0 / maxVal);
+      cvFlatCorrection = temp;
+    }
+  }
+  catch(...)
+  {
+    LOG_ERROR("Could not load flat correction image from file: " << flatFilePath);
+    return PLUS_FAIL;
+  }
+}
 
 // Setup the Andor camera parameters ----------------------------------------------
 

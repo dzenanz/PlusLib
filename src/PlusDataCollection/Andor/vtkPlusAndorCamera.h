@@ -116,6 +116,18 @@ public:
   /*! Get the current temperature of the camera in degrees celsius. */
   float GetCurrentTemperature();
 
+  /*! Paths to additive and multiplicative bias correction images. */
+  PlusStatus SetBiasCorrectionImage(std::string biasFilePath);
+  std::string GetBiasCorrectionImage()
+  {
+    return biasCorrection;
+  }
+  PlusStatus SetFlatCorrectionImage(std::string flatFilePath);
+  std::string GetFlatCorrectionImage()
+  {
+    return flatCorrection;
+  }
+
   /*! -1 uses currently active settings. */
   PlusStatus AcquireBLIFrame(int binning, int vsSpeed, int hsSpeed);
 
@@ -218,7 +230,6 @@ protected:
   double distanceCoefficients[4] = { 0 }; // k_1, k_2, p_1, p_2
   std::string flatCorrection; // filepath to master flat image
   std::string biasCorrection; // filepath to master bias image
-  // TODO: add setters for these
 
   DataSourceArray BLIraw;
   DataSourceArray BLIrectified;
