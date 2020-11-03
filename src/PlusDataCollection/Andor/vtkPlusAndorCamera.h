@@ -172,7 +172,7 @@ protected:
    */
   PlusStatus InternalUpdate() override
   {
-    AcquireBLIFrame();
+    AcquireBLIFrame(-1, -1, -1);
     return PLUS_SUCCESS;
   }
 

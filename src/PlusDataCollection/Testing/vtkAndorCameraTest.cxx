@@ -137,8 +137,8 @@ int main(int argc, char* argv[])
   vtkIndent indent;
   andorCamDevice->PrintSelf(std::cout, indent);
 
-  andorCamDevice->AcquireBLIFrame();
-  andorCamDevice->AcquireGrayscaleFrame(0.1);
+  andorCamDevice->AcquireBLIFrame(-1, -1, -1);
+  andorCamDevice->AcquireGrayscaleFrame(-1, -1, -1, 2.0);
   andorCamDevice->StartRecording();
 
   if(renderingOff)
@@ -157,10 +157,10 @@ int main(int argc, char* argv[])
     }
 
     LOG_DEBUG("Rendering disabled. Wait for just a few seconds to acquire data before exiting");
-    andorCamDevice->AcquireBLIFrame();
-    andorCamDevice->AcquireGrayscaleFrame(0.1);
-    andorCamDevice->AcquireBLIFrame();
-    andorCamDevice->AcquireGrayscaleFrame(0.1);
+    andorCamDevice->AcquireBLIFrame(-1, -1, -1);
+    andorCamDevice->AcquireGrayscaleFrame(-1, -1, -1, 2.0);
+    andorCamDevice->AcquireBLIFrame(-1, -1, -1);
+    andorCamDevice->AcquireGrayscaleFrame(-1, -1, -1, 2.0);
 
     vtkPlusDataSource* bSource(nullptr);
     raw->GetVideoSource(bSource);
