@@ -552,48 +552,22 @@ void vtkPlusAndorVideoSource::FindBadCells(int binning)
     std::vector<cv::Point> badIndicesXY;
     cv::findNonZero(cvBadPixelImage, badIndicesXY);
 
-    std::vector<uint> resolutionCellsWithBadPixels, resolutionCellsToCorrect;
-    uint resolutionCellIndex, badIndices;
-    uint resolutionCellIndexX, resolutionCellIndexY, minX, maxX, minY, maxY, badPixelCount;
+    std::map<uint, int> badPixelCount;
     for (int i = 0; i < badIndicesXY.size(); i++)
     {
-        badPixelCount = 0;
-        resolutionCellIndexX = badIndicesXY[i].x / binning;
-        resolutionCellIndexY = badIndicesXY[i].y / binning;
-        resolutionCellIndex = frameSize[1] * resolutionCellIndexY + resolutionCellIndexX;
+      uint resolutionCellIndexX = badIndicesXY[i].x / binning;
+      uint resolutionCellIndexY = badIndicesXY[i].y / binning;
+      uint resolutionCellIndex = frameSize[1] * resolutionCellIndexY + resolutionCellIndexX;
+      badPixelCount[resolutionCellIndex] += 1;
+    }
 
-        if (std::find(resolutionCellsWithBadPixels.begin(), resolutionCellsWithBadPixels.end(), resolutionCellIndex) == resolutionCellsWithBadPixels.end())
-        {
-            resolutionCellsWithBadPixels.push_back(resolutionCellIndex);
-
-            if (binning > 1)
-            {
-                minX = resolutionCellIndexX * binning;
-                maxX = (resolutionCellIndexX + 1) * binning - 1;
-                minY = resolutionCellIndexY * binning;
-                maxY = (resolutionCellIndexY + 1) * binning - 1;
-
-                for (int j = 0; j < badIndicesXY.size(); j++)
-                {
-                    if (badIndicesXY[j].x >= minX && badIndicesXY[j].x <= maxX)
-                    {
-                        if (badIndicesXY[j].y >= minY && badIndicesXY[j].y <= maxY)
-                        {
-                            badPixelCount++;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                badPixelCount++;
-            }
-
-            if ((((binning * binning) / badPixelCount < 5)) || (binning == 1))
-            {
-                resolutionCellsToCorrect.push_back(resolutionCellIndex);
-            }
-        }
+    std::vector<uint> resolutionCellsToCorrect;
+    for (auto const& bpc : badPixelCount)
+    {
+      if (binning * binning / bpc.second < 5) // tolerate up to 20% dead pixels
+      {
+        resolutionCellsToCorrect.push_back(bpc.first);
+      }
     }
 
     cellsToCorrect[binning] = resolutionCellsToCorrect;
@@ -604,13 +578,14 @@ void vtkPlusAndorVideoSource::CorrectBadPixels(int binning, cv::Mat& cvIMG)
 {
     if (cellsToCorrect.find(binning) == cellsToCorrect.end()) // it needs to be calculated
     {
-        FindBadCells(binning);
+      FindBadCells(binning);
     }
     std::vector<uint> resolutionCellsToCorrect = cellsToCorrect[binning];
     uint resolutionCellIndexX, resolutionCellIndexY;
     std::vector<uint> valuesForMedian, correctedCells;
     uint medianValue;
-    int startX, startY, endX, endY;
+    int startX, startY;
+    unsigned endX, endY;
     int numCellsToCorrect = resolutionCellsToCorrect.size();
     for (uint cell : resolutionCellsToCorrect)
 	  {
