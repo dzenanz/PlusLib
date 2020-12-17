@@ -142,7 +142,7 @@ public:
   /*! Get the current temperature of the camera in degrees celsius. */
   float GetCurrentTemperature();
 
-  /*! Paths to additive and multiplicative bias+dark charge correction images. */
+  /*! Paths to correction images for dead pixels, additive and multiplicative bias. */
   PlusStatus SetBadPixelCorrectionImage(const std::string badPixelFilePath);
   std::string GetBadPixelCorrectionImage()
   {
@@ -233,7 +233,10 @@ protected:
   /*! Data from the frameBuffer ivar is added to the provided data source. */
   void AddFrameToDataSource(DataSourceArray& ds);
 
-  /*! Applies correction for bad pixels.  */
+  /*! Calculates which cells need bad-pixel correction for the given binning level. */
+  void FindBadCells(int binning);
+
+  /*! Applies correction for bad pixels. */
   void CorrectBadPixels(int binning, cv::Mat& cvIMG);
 
   /*! Applies bias correction for dark current, flat correction and lens distortion. */
